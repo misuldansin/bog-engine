@@ -1,0 +1,228 @@
+# =======================================================================
+#  Particle Metadata (used by the engine to define all particles)
+# ------------------------ Format Rules ---------------------------------
+# | Start with declaring the particle's ID using '[]'                   |
+# | ':' is used to separate Key/value pairs                             |
+# | '#' and empty lines are ignored                                     |
+# | Duplicate particle IDs are ignored                                  |
+# -----------------------------------------------------------------------
+
+## ------------------ SOLIDS (10–99) ------------------ ##
+
+# Stone
+[10]
+name: Stone
+category: 1
+base_color: #7C7872
+variant_color: #5E5A55
+is_movable: false
+density: 55.0
+
+# Wall
+[11]
+name: Wall
+category: 1
+base_color: #9A9A9A
+variant_color: #7E7E7E
+is_movable: false
+density: 999.0
+
+# Wood
+[12]
+name: Wood
+category: 1
+base_color: #9B6430
+variant_color: #70461F
+is_movable: false
+density: 32.0
+
+# Metal
+[13]
+name: Metal
+category: 1
+base_color: #B7B9C0
+variant_color: #8A8C91
+is_movable: false
+density: 86.0
+
+# Ice
+[14]
+name: Ice
+category: 1
+base_color: #C6E7F1
+variant_color: #A1D2E0
+is_movable: false
+density: 69.0
+
+# Glass
+[15]
+name: Glass
+category: 1
+base_color: #A5E0E8
+variant_color: #79C6D0
+is_movable: false
+density: 120.0
+
+## ------------------ LIQUIDS (100–199) ------------------ ##
+
+# Water
+[100]
+name: Water
+category: 2
+base_color: #3BA9E0
+variant_color: #2A8AC0
+is_movable: true
+density: 1.0
+max_concentration: 10
+
+# Oil
+[101]
+name: Oil
+category: 2
+base_color: #4B3A22
+variant_color: #3B2E1B
+is_movable: true
+density: 0.8
+max_concentration: 15
+
+# Lava
+[102]
+name: Lava
+category: 2
+base_color: #FF6B1A
+variant_color: #D13A00
+is_movable: true
+density: 3.5
+max_concentration: 5
+
+# Mud
+[103]
+name: Mud
+category: 2
+base_color: #7A4E26
+variant_color: #54361B
+is_movable: true
+density: 1.5
+max_concentration: 8
+
+# Acid
+[104]
+name: Acid
+category: 2
+base_color: #7EF14E
+variant_color: #5DC93A
+is_movable: true
+density: 1.1
+max_concentration: 12
+
+# Steam
+[105]
+name: Steam
+category: 2
+base_color: #DADADA
+variant_color: #B9B9B9
+is_movable: true
+density: 0.5
+max_concentration: 20
+
+# Alcohol
+[106]
+name: Alcohol
+category: 2
+base_color: #D9F0FA
+variant_color: #CBE4F2
+is_movable: true
+density: 0.78
+max_concentration: 10
+
+## ------------------ GASES (200–299) ------------------ ##
+
+# Smoke
+[200]
+name: Smoke
+category: 3
+base_color: #5A4740
+variant_color: #3E302A
+is_movable: true
+density: 0.1
+
+# Fire
+[201]
+name: Fire
+category: 3
+base_color: #FF8C33
+variant_color: #E25822
+is_movable: true
+density: -0.1
+
+## ------------------ SANDS (300–399) ------------------ ##
+
+# Sand
+[300]
+name: Sand
+category: 4
+base_color: #E2C661
+variant_color: #C6A84D
+is_movable: true
+density: 2.0
+repose_angle: 45.0
+
+# Wet Sand
+[301]
+name: Wet Sand
+category: 4
+base_color: #C4A74D
+variant_color: #8D7A3A
+is_movable: true
+density: 3.0
+repose_angle: 55.0
+
+# Dust
+[302]
+name: Dust
+category: 4
+base_color: #CFCBB8
+variant_color: #BEB8A3
+is_movable: true
+density: 1.0
+repose_angle: 32.0
+
+# Gravel
+[303]
+name: Gravel
+category: 4
+base_color: #6A635A
+variant_color: #3F3B35
+is_movable: true
+density: 4.0
+repose_angle: 30.0
+
+# Volcanic Ash
+[304]
+name: Volcanic Ash
+category: 4
+base_color: #474241
+variant_color: #2F2C2B
+is_movable: true
+density: 1.5
+repose_angle: 15.0
+
+# Coarse Gravel
+[305]
+name: Coarse Gravel
+category: 4
+base_color: #7C7469
+variant_color: #686155
+is_movable: true
+density: 2.7
+repose_angle: 65.0
+
+# Quartz Sand
+[306]
+name: Quartz Sand
+category: 4
+base_color: #E1E0DA
+variant_color: #CBC9C2
+is_movable: true
+density: 2.3
+repose_angle: 62.0

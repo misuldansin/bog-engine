@@ -1,10 +1,10 @@
-import { PARTICLE, CATEGORY } from "./structs/data.js";
+import type { GameSettings } from "./types";
 
 export const Settings = Object.freeze({
   GAME_WIDTH: 200,
   GAME_HEIGHT: 150,
-  SELECTED_PARTICLE: PARTICLE.COARSE_GRAVEL, // The default selected particle
-  SELECTED_CATEGORY: CATEGORY.SAND,
+  SELECTED_PARTICLE: 10, // The default selected particle
+  SELECTED_CATEGORY: 1,
 
   BRUSH_MAX_SIZE: 24,
   BRUSH_CUR_SIZE: 4,
@@ -18,4 +18,4 @@ export const Settings = Object.freeze({
 
   RENDER_UPDATE_INTERVAL: 15,
   PHYSICS_UPDATE_INTERVAL: 15,
-});
+}) as GameSettings;

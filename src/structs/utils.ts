@@ -1,21 +1,27 @@
-export const Utility = {
-  lerp(a, b, t) {
+import type { Offset } from "../types";
+
+export const Utilities = {
+  lerp(a: number, b: number, t: number): number {
+    // Linear interpolation: a + (b - a) * t
     return a + (b - a) * t;
   },
-  shuffleArray(arrayToShuffle) {
-    const shuffledArray = [...arrayToShuffle];
+  shuffleArray<T>(array: T[]): T[] {
+    // Copy the original array
+    const outArray = [...array];
 
-    for (let i = shuffledArray.length - 1; i > 0; i--) {
+    // Shuffle and return
+    for (let i = outArray.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];
+      [outArray[i], outArray[j]] = [outArray[j]!, outArray[i]!];
     }
-    return shuffledArray;
+    return outArray;
   },
-  calculateRepose(angleDeg) {
-    let angle = Math.max(10, Math.min(angleDeg, 80));
-    const t = (angle * Math.PI) / 180;
 
-    let directions = [];
+  calculateRepose(angleDeg: number): Offset[][] {
+    let angle: number = Math.max(10, Math.min(angleDeg, 80));
+    const t: number = (angle * Math.PI) / 180;
+
+    let directions: Offset[][] = [];
 
     // First, go straight down
     directions.push([{ dx: 0, dy: -1 }]);

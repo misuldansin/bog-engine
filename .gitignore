@@ -1,5 +1,5 @@
-# Folder to ignore VS Code settings
 .vscode/
-
-# Folder to ignore temporary/scratch files
 temp/
+/node_modules
+/dist
+*.tsbuildinfo
