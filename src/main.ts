@@ -28,7 +28,15 @@ async function initialize() {
     const loadedParticleData = await loadParticleData("./src/data/particles.data");
 
     // Init Input Manager
-    const inputManager: InputManager = new InputManager(gameWidth, gameHeight, Settings, loadedParticleData, mainContainer, canvas);
+    const inputManager: InputManager = new InputManager(
+      gameWidth,
+      gameHeight,
+      Settings,
+      loadedParticleData,
+      mainContainer,
+      canvas,
+      renderer
+    );
 
     const debug: Debug = new Debug(mainContainer);
     debug.enableDebug(true);

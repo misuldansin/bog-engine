@@ -281,8 +281,26 @@ export class Grid {
   }
 
   // DONOT CALL!!! (WIP)
-  swapParticles(particleAIndex: number, particleBIndex: number, markAsDirty: boolean = false, markNeighborsAsDirty: boolean = false): null {
-    return null;
+  swapParticles(particleA: Particle, particleB: Particle, markAsDirty: boolean, markNeighborsAsDirty: boolean) {
+    // Swap particles in the data array
+    this.#data![particleA.index] = particleB;
+    this.#data![particleB.index] = particleA;
+
+    // Update their postion and indices
+    const tempPosition = { x: particleA.position.x, y: particleA.position.y };
+    const tempIndex = particleA.index;
+
+    particleA.position = particleB.position;
+    particleA.index = particleB.index;
+
+    particleB.position = tempPosition;
+    particleB.index = tempIndex;
+
+    // Mark them as dirty
+    if (markAsDirty) {
+      this.markDirty(particleA, markNeighborsAsDirty);
+      this.markDirty(particleB, markNeighborsAsDirty);
+    }
   }
 
   // ..

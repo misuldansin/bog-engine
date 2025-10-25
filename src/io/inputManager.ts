@@ -4,6 +4,8 @@ import { color } from "../structs/color_utils";
 import type { Grid } from "../structs/grid";
 
 export class InputManager {
+  #renderer: Renderer;
+
   // DOMs and input default settings
   #width: number;
   #height: number;
@@ -40,8 +42,11 @@ export class InputManager {
     settings: GameSettings,
     particleDataMap: ParticleMap,
     inputContainer: HTMLDivElement,
-    canvas: HTMLCanvasElement
+    canvas: HTMLCanvasElement,
+    rendererInstance: Renderer
   ) {
+    this.#renderer = rendererInstance;
+
     this.#width = inputWidth;
     this.#height = inputHeight;
     this.#mainContainer = inputContainer;
@@ -386,7 +391,7 @@ export class InputManager {
     canvas.addEventListener("wheel", this.#onWheel, { passive: false });
 
     // Disable right click context manu
-    canvas.addEventListener("contextmenu", this.#onContextMenu);
+    this.#mainContainer.addEventListener("contextmenu", this.#onContextMenu);
 
     // Window fallbacks
     window.addEventListener("pointerup", this.#onWindowPointerUp);

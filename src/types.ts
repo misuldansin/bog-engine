@@ -15,6 +15,12 @@ export type GameSettings = {
   PHYSICS_UPDATE_INTERVAL: number;
 };
 
+// export type Group = {};
+
+// export type liquidGroup = { data: Group[]; map: Record<Index, Index> };
+
+export type equalisationGroup = { liquidParticle: Particle[]; emptyParticle: Particle[] };
+
 // --------- UTILITIES TYPES ---------
 export type Color = [number, number, number, number] & Uint8ClampedArray;
 export type Pixel = { index: number; value: Color };
