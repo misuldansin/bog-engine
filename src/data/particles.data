@@ -115,16 +115,6 @@ is_movable: true
 density: 1.1
 max_concentration: 12
 
-# Steam
-[105]
-name: Steam
-category: 2
-base_color: #DADADA
-variant_color: #B9B9B9
-is_movable: true
-density: 0.5
-max_concentration: 20
-
 # Alcohol
 [106]
 name: Alcohol
@@ -144,7 +134,7 @@ category: 3
 base_color: #5A4740
 variant_color: #3E302A
 is_movable: true
-density: 0.1
+density: 0.2
 
 # Fire
 [201]
@@ -153,7 +143,16 @@ category: 3
 base_color: #FF8C33
 variant_color: #E25822
 is_movable: true
-density: -0.1
+density: 0.7
+
+# Steam
+[203]
+name: Steam
+category: 3
+base_color: #DADADA
+variant_color: #B9B9B9
+is_movable: true
+density: 0.5
 
 ## ------------------ SANDS (300–399) ------------------ ##
 
