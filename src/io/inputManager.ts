@@ -7,7 +7,6 @@ export class InputManager {
   // DOMs and input default settings
   #width: number;
   #height: number;
-  #renderer: Renderer;
   #mainContainer: HTMLDivElement;
   #canvas: HTMLCanvasElement;
   #particleDataMap: ParticleMap;
@@ -40,13 +39,11 @@ export class InputManager {
     inputHeight: number,
     settings: GameSettings,
     particleDataMap: ParticleMap,
-    rendererInstance: Renderer,
     inputContainer: HTMLDivElement,
     canvas: HTMLCanvasElement
   ) {
     this.#width = inputWidth;
     this.#height = inputHeight;
-    this.#renderer = rendererInstance;
     this.#mainContainer = inputContainer;
     this.#canvas = canvas;
     this.#particleDataMap = particleDataMap;

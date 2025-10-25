@@ -32,7 +32,7 @@ export class Renderer {
   }
 
   // ..
-  queueParticles(particlesToQueue: Set<Particle>, debugOverlayColor?: Color) {
+  queueParticles(particlesToQueue: Set<Particle> | Particle[], debugOverlayColor?: Color) {
     // Queue particles to be processed later by the renderer loop
     this.#queuedParticles.push(...particlesToQueue);
 

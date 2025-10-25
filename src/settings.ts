@@ -17,5 +17,5 @@ export const Settings = Object.freeze({
   DEBUG_OVERLAY_START_ENABLED: false,
 
   RENDER_UPDATE_INTERVAL: 15,
-  PHYSICS_UPDATE_INTERVAL: 15,
+  PHYSICS_UPDATE_INTERVAL: 500,
 }) as GameSettings;

@@ -13,6 +13,7 @@ import type {
   ElectronicParticle,
   SandParticleData,
   BaseParticleData,
+  Index,
 } from "../types";
 
 import { color } from "../structs/color_utils";
@@ -31,11 +32,22 @@ export const NEIGHBORHOOD = Object.freeze({
   ] as Offset[],
 } as const);
 
+export const NEIGHBOR = Object.freeze({
+  UP_LEFT: { dx: -1, dy: 1 } as Offset,
+  UP: { dx: 0, dy: 1 } as Offset,
+  UP_RIGHT: { dx: 1, dy: 1 } as Offset,
+  LEFT: { dx: -1, dy: 0 } as Offset,
+  RIGHT: { dx: 1, dy: 0 } as Offset,
+  DOWN_LEFT: { dx: -1, dy: -1 } as Offset,
+  DOWN: { dx: 0, dy: -1 } as Offset,
+  DOWN_RIGHT: { dx: 1, dy: -1 } as Offset,
+} as const);
+
 export class Grid {
   width: number;
   height: number;
   #data: Particle[];
-  #dirtyParticles: Set<Particle>;
+  #dirtyParticles: Set<Index>;
   ParticleDataBlueprint: ParticleMap;
 
   constructor(gridWidth: number, gridHeight: number, particleDataBlueprint: ParticleMap) {
@@ -165,7 +177,7 @@ export class Grid {
         this.#data[index] = newParticle;
 
         // Mark it dirty
-        this.#dirtyParticles.add(newParticle);
+        this.#dirtyParticles.add(newParticle.index);
       }
     }
   }
@@ -298,13 +310,13 @@ export class Grid {
   // ..
   markDirty(particle: Particle, markNeighborDirty: boolean) {
     // Mark this particle dirty
-    this.#dirtyParticles.add(particle);
+    this.#dirtyParticles.add(particle.index);
 
     // Handle marking neighbors dirty
     if (markNeighborDirty) {
       const neighbors: Particle[] = this.getNeighborsOf(particle, NEIGHBORHOOD.ALL_NEIGHBORS);
       for (const neighbor of neighbors) {
-        this.#dirtyParticles.add(neighbor);
+        this.#dirtyParticles.add(neighbor.index);
       }
     }
   }
