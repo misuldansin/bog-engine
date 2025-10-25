@@ -107,6 +107,7 @@ export class Engine {
 
     // ------ Update Physics ------
     this.#accumulator += delta;
+    let stepsTaken = 0;
     while (this.#accumulator >= this.#physicsInterval) {
       const particlesToUpdate: Particle[] = [];
       for (const index of this.#currentGrid.dirtyParticles) {
@@ -122,6 +123,12 @@ export class Engine {
 
       this.tickCount++;
       this.#accumulator -= this.#physicsInterval;
+
+      stepsTaken++;
+
+      if (stepsTaken > 60) {
+        this.#accumulator = 0;
+      }
     }
 
     // ------ Render This Frame ------
