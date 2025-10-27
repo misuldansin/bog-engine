@@ -1,6 +1,6 @@
 import type { GameSettings } from "./types";
 
-export const Settings = Object.freeze({
+export const Settings = {
   GAME_WIDTH: 244,
   GAME_HEIGHT: 192,
   SELECTED_PARTICLE: 10, // The default selected particle
@@ -18,4 +18,4 @@ export const Settings = Object.freeze({
 
   RENDER_UPDATE_INTERVAL: 16.667,
   PHYSICS_UPDATE_INTERVAL: 25,
-}) as GameSettings;
+} as GameSettings;

@@ -1,15 +1,29 @@
+import type { GameSettings } from "./types";
+
 import { Settings } from "./settings";
 import { loadParticleData } from "./loader";
 import { Renderer } from "./io/renderer";
 import { Engine } from "./core/engine";
 import { InputManager } from "./io/inputManager";
 import { Debug } from "./io/debug";
+import { Window } from "./structs/window";
 
 async function initialize() {
   try {
     // Retrieve game states
-    const gameWidth: number = Settings.GAME_WIDTH;
-    const gameHeight: number = Settings.GAME_HEIGHT;
+    let settings: GameSettings = Settings;
+    const MAX_DIMENTION = 400;
+    const MIN_DIMENTION = 40;
+    const MAX_INTERVAL = 1000;
+    const MIN_INTERVAL = 4;
+
+    // Correct ahem them settings
+    settings.GAME_WIDTH = Math.max(MIN_DIMENTION, Math.min(MAX_DIMENTION, settings.GAME_WIDTH));
+    settings.GAME_HEIGHT = Math.max(MIN_DIMENTION, Math.min(MAX_DIMENTION, settings.GAME_HEIGHT));
+    settings.PHYSICS_UPDATE_INTERVAL = Math.max(MIN_INTERVAL, Math.min(MAX_INTERVAL, settings.PHYSICS_UPDATE_INTERVAL));
+
+    // Freeze so settings is read-only properties
+    Object.freeze(settings);
 
     // Get DOM references
     const canvas: HTMLElement | null = document.getElementById("main-canvas");
@@ -22,37 +36,64 @@ async function initialize() {
     }
 
     // Init Renderer
-    const renderer = new Renderer(gameWidth, gameHeight, canvas as HTMLCanvasElement);
+    const renderer = new Renderer(canvas, settings);
 
     // Retrieve particle data
     const loadedParticleData = await loadParticleData("./src/data/particles.data");
 
     // Init Input Manager
-    const inputManager: InputManager = new InputManager(
-      gameWidth,
-      gameHeight,
-      Settings,
-      loadedParticleData,
-      mainContainer,
-      canvas,
-      renderer
-    );
+    const inputManager: InputManager = new InputManager(loadedParticleData, mainContainer, canvas, settings, renderer);
 
+    // Init Debugger
     const debug: Debug = new Debug(mainContainer);
-    debug.enableDebug(true);
+    debug.enableDebug(false);
 
     // Init Engine
-    const engine = new Engine(gameWidth, gameHeight, loadedParticleData, renderer, inputManager, debug);
+    const engine = new Engine(loadedParticleData, settings, renderer, inputManager, debug);
 
     // Start the engine
     engine.start();
 
+    // ! debug: .. <
     console.log(loadedParticleData);
+    addDemoWindow(mainContainer);
+    // ! debug: .. >
 
     // ..
   } catch (error) {
-    console.error("CRITICAL ERROR: Failed to initialize engine due to data loading failure.", error);
+    console.error("ERROR: Failed to initialize engine due to data loading failure.", error);
   }
+}
+
+// ! temp: ..
+function addDemoWindow(hostElement: HTMLDivElement) {
+  const newWindow = new Window(hostElement, "New Window", { x: 80, y: 80 }, { x: 400, y: 600 }, { x: 400, y: 600 });
+
+  newWindow.addTitle("Particle Emitter Controls");
+
+  newWindow.addImage("assets/preview_image.jpg", 300, 100, "Preview Image");
+  newWindow.addText("Status: Core System Active", "#4cae50");
+  newWindow.addDivider();
+
+  newWindow.addSection("Emitter");
+  newWindow.addTextInput("Name", "emitter-name", "Enter emitor name...");
+  newWindow.addDivider();
+
+  newWindow.addSection("Brush Parameters");
+  newWindow.addSlider("Brush Size", "brush-size", { x: 1, y: 100 }, 20);
+  newWindow.addSlider("Opacity", "opacity-val", { x: 0, y: 1 }, 0.7);
+  newWindow.addToggleSwitch("Smooth", "brush-smooth", false);
+  newWindow.addDropdown("Render Mode", "render-mode", ["Fastest", "High Quality", "Wireframe", "Debug"]);
+  newWindow.addDivider();
+
+  newWindow.addSection("Particle Type");
+  for (let i = 1; i <= 3; i++) {
+    newWindow.addButton(`Particle Type ${i}`, `particle-${i}`);
+  }
+
+  newWindow.addDivider();
+  newWindow.addButton("Start Simulation", "start-sim", "#4c5dbb");
+  newWindow.addButton("Save Preset", "save-preset");
 }
 
 // Initialise App

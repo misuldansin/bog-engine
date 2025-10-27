@@ -1,4 +1,4 @@
-import type { Particle, Index, Color, Pixel } from "../types";
+import type { Particle, Index, Color, Pixel, GameSettings } from "../types";
 
 export class Renderer {
   // DOM elements
@@ -12,13 +12,13 @@ export class Renderer {
   #queuedParticles: Particle[];
   #queuedOverlayPixels: Map<Index, Color>;
 
-  constructor(renderWidth: number, renderHeight: number, canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, settings: GameSettings) {
     // Load DOM dependencies
     this.#canvas = canvas;
     this.#ctx = this.#canvas.getContext("2d") as CanvasRenderingContext2D;
 
-    this.#renderWidth = renderWidth;
-    this.#renderHeight = renderHeight;
+    this.#renderWidth = settings.GAME_WIDTH;
+    this.#renderHeight = settings.GAME_HEIGHT;
     this.#frameBuffer = new Uint8ClampedArray(this.#renderWidth * this.#renderHeight * 4);
     this.#queuedParticles = [];
     this.#queuedOverlayPixels = new Map();

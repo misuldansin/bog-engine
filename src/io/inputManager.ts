@@ -37,18 +37,16 @@ export class InputManager {
   activeButton: string;
 
   constructor(
-    inputWidth: number,
-    inputHeight: number,
-    settings: GameSettings,
     particleDataMap: ParticleMap,
     inputContainer: HTMLDivElement,
     canvas: HTMLCanvasElement,
+    settings: GameSettings,
     rendererInstance: Renderer
   ) {
     this.#renderer = rendererInstance;
 
-    this.#width = inputWidth;
-    this.#height = inputHeight;
+    this.#width = settings.GAME_WIDTH;
+    this.#height = settings.GAME_HEIGHT;
     this.#mainContainer = inputContainer;
     this.#canvas = canvas;
     this.#particleDataMap = particleDataMap;

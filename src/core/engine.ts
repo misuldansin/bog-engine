@@ -9,6 +9,7 @@ import type {
   LiquidParticle,
   equalisationGroup,
   GasParticle,
+  GameSettings,
 } from "../types";
 
 import { Grid, NEIGHBOR, NEIGHBORHOOD } from "../structs/grid";
@@ -44,10 +45,13 @@ export class Engine {
   #accumulator: number;
   tickCount: number;
 
+  // ! temp: ..
+  #clearDirtyDelta = 0;
+  #clearDirtyFreq = 60;
+
   constructor(
-    gameWidth: number,
-    gameHeight: number,
     particleDataBlueprint: ParticleMap,
+    settings: GameSettings,
     renderInstance: Renderer,
     inputManagerInstance: InputManager,
     debugInstance: Debug
@@ -56,9 +60,9 @@ export class Engine {
     this.#inputManager = inputManagerInstance;
     this.#debug = debugInstance;
 
-    this.#gameWidth = gameWidth;
-    this.#gameHeight = gameHeight;
-    this.#currentGrid = new Grid(gameWidth, gameHeight, particleDataBlueprint);
+    this.#gameWidth = settings.GAME_WIDTH;
+    this.#gameHeight = settings.GAME_HEIGHT;
+    this.#currentGrid = new Grid(this.#gameWidth, this.#gameHeight, particleDataBlueprint);
     this.#particlesProcessed = new Set();
 
     this.#isRunning = false;
@@ -113,10 +117,16 @@ export class Engine {
       for (const index of this.#currentGrid.dirtyParticles) {
         particlesToUpdate.push(this.#currentGrid.data[index]!);
       }
-      this.#currentGrid.dirtyParticles.clear();
 
-      const overlayColor: Color = new Uint8ClampedArray([238, 66, 81, 140]) as Color;
-      this.#renderer.queueParticles(particlesToUpdate);
+      this.#clearDirtyDelta++;
+
+      if (this.#clearDirtyDelta > this.#clearDirtyFreq) {
+        this.#currentGrid.dirtyParticles.clear();
+        this.#clearDirtyDelta = 0;
+      }
+
+      const overlayColor: Color = new Uint8ClampedArray([210, 55, 55, 180]) as Color;
+      this.#renderer.queueParticles(particlesToUpdate, this.#debug.isOverlayEnabled ? overlayColor : undefined);
 
       // Update physics this frame
       this.#stepPhysics(particlesToUpdate);
@@ -246,15 +256,29 @@ export class Engine {
       const emptyParticle = group.emptyParticle.sort((a, b) => a.position.y - b.position.y);
 
       const swapsToDo = liquidParticles.length;
+
+      let swapped = 0;
+      const limitedSwap = swapsToDo / 4;
       for (let i = 0; i < swapsToDo; i++) {
         const liquidPar = liquidParticles[i]!;
         const emptyPar = emptyParticle[i]!;
+
+        const mag = Math.sqrt(liquidPar.position.x * emptyPar.position.x + liquidPar.position.y * emptyPar.position.y);
+
+        // if (mag > 200) {
+        //   continue;
+        // }
 
         // Only swap liquid particle to a lower empty particle
         if (liquidPar.position.y > emptyPar.position.y) {
           this.#currentGrid.swapParticles(liquidPar, emptyPar, true, true);
           this.#particlesProcessed.add(liquidPar.index);
           this.#particlesProcessed.add(emptyPar.index);
+
+          swapped++;
+          if (swapped >= limitedSwap) {
+            break;
+          }
         }
       }
     }
@@ -279,11 +303,21 @@ export class Engine {
           continue;
         }
 
+        if (particle.category !== category) {
+          continue;
+        }
+
         // Get the current particle's up and left neighbors
         const upParticle: Particle | null = grid.getNeighborOf(particle, NEIGHBOR.UP);
         const leftParticle: Particle | null = grid.getNeighborOf(particle, NEIGHBOR.LEFT);
-        const hasUpNeighbor = upParticle && upParticle.category === category && upParticle.id === particle.id;
-        const hasLeftNeighbor = leftParticle && leftParticle.category === category && leftParticle.id === particle.id;
+        const hasUpNeighbor = upParticle && upParticle.id === particle.id;
+        const hasLeftNeighbor = leftParticle && leftParticle.id === particle.id;
+
+        // ! Todo: ..
+        const upLeftPar = null; //grid.getNeighborOf(particle, NEIGHBOR.DOWN)
+        const upRightPar = null;
+        const isUpLeftNeighEmpty = false; // upLeftPar && upLeftPar.id === 0
+        const hasUpRightNeighEmpty = false; //  upRightPar && upRightPar.id === 0
 
         let leftIndex: Index = -1;
         if (hasLeftNeighbor) {
@@ -307,6 +341,12 @@ export class Engine {
             equalisationGroups[newGroupIndex]!.liquidParticle.push(particle);
             equalisationGroups[newGroupIndex]!.emptyParticle.push(upParticle);
           }
+          // if (isUpLeftNeighEmpty) {
+          //   equalisationGroups[newGroupIndex]!.emptyParticle.push(upLeftPar);
+          // }
+          // if (hasUpRightNeighEmpty) {
+          //   equalisationGroups[newGroupIndex]!.emptyParticle.push(upRightPar);
+          // }
 
           groupMap[index] = newGroupIndex;
         }
@@ -322,6 +362,12 @@ export class Engine {
             equalisationGroups[leftGroupIndex]!.liquidParticle.push(particle);
             equalisationGroups[leftGroupIndex]!.emptyParticle.push(upParticle);
           }
+          // if (isUpLeftNeighEmpty) {
+          //   equalisationGroups[leftGroupIndex]!.emptyParticle.push(upLeftPar);
+          // }
+          // if (hasUpRightNeighEmpty) {
+          //   equalisationGroups[leftGroupIndex]!.emptyParticle.push(upRightPar);
+          // }
 
           groupMap[index] = leftGroupIndex;
         }
@@ -337,6 +383,12 @@ export class Engine {
             equalisationGroups[upGroupIndex]!.liquidParticle.push(particle);
             equalisationGroups[upGroupIndex]!.emptyParticle.push(upParticle);
           }
+          // if (isUpLeftNeighEmpty) {
+          //   equalisationGroups[upGroupIndex]!.emptyParticle.push(upLeftPar);
+          // }
+          // if (hasUpRightNeighEmpty) {
+          //   equalisationGroups[upGroupIndex]!.emptyParticle.push(upRightPar);
+          // }
 
           groupMap[index] = upGroupIndex;
         }
@@ -352,6 +404,12 @@ export class Engine {
             equalisationGroups[upGroupIndex]!.liquidParticle.push(particle);
             equalisationGroups[upGroupIndex]!.emptyParticle.push(upParticle);
           }
+          // if (isUpLeftNeighEmpty) {
+          //   equalisationGroups[upGroupIndex]!.emptyParticle.push(upLeftPar);
+          // }
+          // if (hasUpRightNeighEmpty) {
+          //   equalisationGroups[upGroupIndex]!.emptyParticle.push(upRightPar);
+          // }
 
           groupMap[index] = upGroupIndex;
 

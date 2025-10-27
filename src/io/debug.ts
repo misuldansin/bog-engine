@@ -26,6 +26,10 @@ export class Debug {
     this.#initDebug(containerToAttach);
   }
 
+  public get isOverlayEnabled(): boolean {
+    return this.#isOverlayEnabled;
+  }
+
   // ..
   enableDebug(alsoEnableOverlay: boolean) {
     this.#isEnabled = true;
