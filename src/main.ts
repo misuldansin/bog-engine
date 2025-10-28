@@ -34,6 +34,7 @@ async function initialize() {
     if (!(mainContainer instanceof HTMLDivElement)) {
       throw new Error("HTML element 'main-panel' does not exist.");
     }
+    canvas.style.aspectRatio = (settings.GAME_WIDTH / settings.GAME_HEIGHT).toString();
 
     // Init Renderer
     const renderer = new Renderer(canvas, settings);

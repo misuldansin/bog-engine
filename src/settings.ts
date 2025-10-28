@@ -1,7 +1,7 @@
 import type { GameSettings } from "./types";
 
 export const Settings = {
-  GAME_WIDTH: 244,
+  GAME_WIDTH: 342,
   GAME_HEIGHT: 192,
   SELECTED_PARTICLE: 10, // The default selected particle
   SELECTED_CATEGORY: 1,

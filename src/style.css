@@ -65,16 +65,14 @@ body {
 
 /** MAIN CANVAS CLASSES ------------------------------------ */
 /** ======================================================== */
-#main-canvas {
+.canvas {
   background-color: #000;
 
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: -webkit-crisp-edges;
 
-  width: 100%;
-  max-width: 1400px;
-  height: auto;
+  height: 100%;
 
   display: block;
   touch-action: none;

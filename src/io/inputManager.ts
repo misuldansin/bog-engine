@@ -132,6 +132,8 @@ export class InputManager {
     canvas.addEventListener("lostpointercapture", this._onPointerCancel);
     canvas.addEventListener("pointerenter", this._onPointerEnter);
     canvas.addEventListener("pointerleave", this._onPointerLeave);
+    canvas.addEventListener("focus", this._onPointerEnter);
+    canvas.addEventListener("blur", this._onPointerLeave);
 
     // Mouse wheel
     canvas.addEventListener("wheel", this._onWheel, { passive: false });
@@ -245,10 +247,10 @@ export class InputManager {
   _onContextMenu = (e: PointerEvent) => {
     e.preventDefault();
   };
-  _onPointerEnter = (e: PointerEvent) => {
+  _onPointerEnter = () => {
     this.isDrawingOverlay = true;
   };
-  _onPointerLeave = (e: PointerEvent) => {
+  _onPointerLeave = () => {
     this.isDrawingOverlay = false;
   };
 

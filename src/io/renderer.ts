@@ -2,65 +2,65 @@ import type { Particle, Index, Color, Pixel, GameSettings } from "../types";
 
 export class Renderer {
   // DOM elements
-  #canvas: HTMLCanvasElement;
-  #ctx: CanvasRenderingContext2D;
+  _canvas: HTMLCanvasElement;
+  _ctx: CanvasRenderingContext2D;
 
   // Render variables
-  #renderWidth: number;
-  #renderHeight: number;
-  #frameBuffer: Uint8ClampedArray;
-  #queuedParticles: Particle[];
-  #queuedOverlayPixels: Pixel[];
-  #queuedUIPixels: Pixel[];
+  _renderWidth: number;
+  _renderHeight: number;
+  _frameBuffer: Uint8ClampedArray;
+  _queuedParticles: Particle[];
+  _queuedOverlayPixels: Pixel[];
+  _queuedUIPixels: Pixel[];
 
   constructor(canvas: HTMLCanvasElement, settings: GameSettings) {
     // Load DOM dependencies
-    this.#canvas = canvas;
-    this.#ctx = this.#canvas.getContext("2d") as CanvasRenderingContext2D;
+    this._canvas = canvas;
+    this._ctx = this._canvas.getContext("2d") as CanvasRenderingContext2D;
 
-    this.#renderWidth = settings.GAME_WIDTH;
-    this.#renderHeight = settings.GAME_HEIGHT;
-    this.#frameBuffer = new Uint8ClampedArray(this.#renderWidth * this.#renderHeight * 4);
-    this.#queuedParticles = [];
-    this.#queuedOverlayPixels = [];
-    this.#queuedUIPixels = [];
+    this._renderWidth = settings.GAME_WIDTH;
+    this._renderHeight = settings.GAME_HEIGHT;
+    this._frameBuffer = new Uint8ClampedArray(this._renderWidth * this._renderHeight * 4);
+    this._queuedParticles = [];
+    this._queuedOverlayPixels = [];
+    this._queuedUIPixels = [];
 
     // Initialise HTML elements
-    this.#canvas.width = this.#renderWidth;
-    this.#canvas.height = this.#renderHeight;
-    this.#ctx.imageSmoothingEnabled = false;
-    this.#ctx.translate(0, this.#canvas.height);
-    this.#ctx.scale(1, -1);
+    this._canvas.width = this._renderWidth;
+    this._canvas.height = this._renderHeight;
+    this._ctx.imageSmoothingEnabled = false;
+    this._ctx.translate(0, this._canvas.height);
+    this._ctx.scale(1, -1);
   }
 
   // ..
   queueUIPixels(pixelsToQueue: Pixel[]) {
     // Clear previous pixels
-    this.#queuedUIPixels = [];
+    this._queuedUIPixels = [];
 
-    this.#queuedUIPixels = pixelsToQueue;
+    this._queuedUIPixels = pixelsToQueue;
   }
 
   // ..
   queueParticles(particlesToQueue: Set<Particle> | Particle[], debugOverlayColor?: Color) {
     // Queue particles to be processed later by the renderer loop
-    this.#queuedParticles.push(...particlesToQueue);
+    this._queuedParticles.push(...particlesToQueue);
 
     // Handle debug overlay
     if (debugOverlayColor) {
-      const width: number = this.#renderWidth;
-      const height: number = this.#renderHeight;
+      const width: number = this._renderWidth;
+      const height: number = this._renderHeight;
       for (const particle of particlesToQueue) {
         const flippedY: number = height - 1 - particle.position.y;
         const index: number = flippedY * width + particle.position.x;
-        this.#queuedOverlayPixels.push({ index: index, value: debugOverlayColor });
+        this._queuedOverlayPixels.push({ index: index, value: debugOverlayColor });
       }
     }
   }
 
   // ..
   queueOverlayPixels(pixelsToQueue: Pixel[]) {
-    this.#queuedOverlayPixels.push(...pixelsToQueue);
+    this._queuedOverlayPixels.push(...pixelsToQueue);
   }
 
   // ..
@@ -69,23 +69,24 @@ export class Renderer {
     this.#processQueuedParticles();
 
     // Step 2. add overlay data
-    let postProcessFrameBuffer: Uint8ClampedArray = new Uint8ClampedArray(this.#frameBuffer);
-    this.#addBuffer(postProcessFrameBuffer, this.#queuedOverlayPixels);
-    this.#addBuffer(postProcessFrameBuffer, this.#queuedUIPixels);
+    let postProcessFrameBuffer: Uint8ClampedArray = new Uint8ClampedArray(this._frameBuffer);
+    this.#addBuffer(postProcessFrameBuffer, this._queuedOverlayPixels);
+    this.#addBuffer(postProcessFrameBuffer, this._queuedUIPixels);
 
     // Step 3. render the final result
-    const imageData: ImageData = new ImageData(postProcessFrameBuffer as ImageDataArray, this.#renderWidth, this.#renderHeight);
-    this.#ctx.putImageData(imageData, 0, 0);
+    const imageData: ImageData = new ImageData(postProcessFrameBuffer as ImageDataArray, this._renderWidth, this._renderHeight);
+    this._ctx.putImageData(imageData, 0, 0);
 
     // Step 4. clear any rendering data related to this frame
-    this.#queuedParticles.length = 0;
-    this.#queuedOverlayPixels = [];
+    this._queuedParticles.length = 0;
+    this._queuedOverlayPixels = [];
+    this._queuedUIPixels = [];
   }
 
   #processQueuedParticles() {
-    const particlesToProcess: Particle[] = this.#queuedParticles;
-    const width: number = this.#renderWidth;
-    const height: number = this.#renderHeight;
+    const particlesToProcess: Particle[] = this._queuedParticles;
+    const width: number = this._renderWidth;
+    const height: number = this._renderHeight;
 
     for (const particle of particlesToProcess) {
       const particleX: number = particle.position.x;
@@ -95,10 +96,10 @@ export class Renderer {
 
       // Push particle's color to the fram buffer
       let pixelColor: Color = this.#processParticleColor(particle);
-      this.#frameBuffer[index * 4 + 0] = pixelColor[0]; // red
-      this.#frameBuffer[index * 4 + 1] = pixelColor[1]; // green
-      this.#frameBuffer[index * 4 + 2] = pixelColor[2]; // blue
-      this.#frameBuffer[index * 4 + 3] = pixelColor[3]; // alpha
+      this._frameBuffer[index * 4 + 0] = pixelColor[0]; // red
+      this._frameBuffer[index * 4 + 1] = pixelColor[1]; // green
+      this._frameBuffer[index * 4 + 2] = pixelColor[2]; // blue
+      this._frameBuffer[index * 4 + 3] = pixelColor[3]; // alpha
     }
   }
 
