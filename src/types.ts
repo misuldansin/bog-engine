@@ -22,11 +22,17 @@ export type GameSettings = {
 export type equalisationGroup = { liquidParticle: Particle[]; emptyParticle: Particle[] };
 
 // --------- UTILITIES TYPES ---------
+export type Vector2 = { x: number; y: number };
+export type Offset = { dx: number; dy: number };
+export type Size = { width: number; height: number };
+
+export type Index = number;
+
 export type Color = [number, number, number, number] & Uint8ClampedArray;
 export type Pixel = { index: number; value: Color };
-export type Offset = { dx: number; dy: number };
-export type Index = number;
-export type Vector2 = { x: number; y: number };
+
+export type WindowCategoryOrientation = "left" | "right" | "top" | "bottom";
+export type FontWeight = "normal" | "bold" | "bolder" | "lighter";
 
 // --------- PARTICLE TYPES ---------
 export interface BaseParticle {

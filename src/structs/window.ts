@@ -1,4 +1,4 @@
-import type { Vector2 } from "../types";
+import type { FontWeight, Index, Size, Vector2, WindowCategoryOrientation } from "../types";
 
 export class Window {
   // DOM elements
@@ -7,35 +7,50 @@ export class Window {
   _titlebar!: HTMLDivElement;
   _closeButton!: HTMLButtonElement;
   _pinButton!: HTMLButtonElement;
-  _settingsButton!: HTMLButtonElement;
-  _container!: HTMLDivElement;
+  _categoryStrip!: HTMLDivElement;
+  _contentArea!: HTMLDivElement;
+  _contentContainer!: HTMLDivElement;
+  _containers: HTMLDivElement[] = [];
+  _categoryButtons: HTMLButtonElement[] = [];
 
   // Window properties
-  _size: Vector2;
-  _maxSize: Vector2;
+  _size: Size;
+  _maxSize: Size;
 
   // Event Listener States and Flags
   _isFocused: boolean;
   _isDragging: boolean;
   _dragOffset: Vector2;
+  _selectedCategory: number;
 
   // DOM static variables
   static currentZIndex = 100;
   static DROPDOWN_ITEM_HEIGHT = 30;
   static DROPDOWN_BUTTON_HEIGHT = 30;
 
-  constructor(hostElement: HTMLDivElement, title: string, position: Vector2, size: Vector2, maxSize: Vector2) {
+  constructor(
+    hostElement: HTMLDivElement,
+    title: string,
+    position: Vector2,
+    size: Size,
+    maxSize: Size,
+    categoryOrientation: WindowCategoryOrientation,
+    categoryName: string,
+    categoryIcon: string,
+    customContainer?: HTMLDivElement
+  ) {
     this.hostElement = hostElement;
-    size.x = Math.max(40, Math.min(size.x, maxSize.x));
-    size.y = Math.max(40, Math.min(size.y, maxSize.y));
+    size.width = Math.max(40, Math.min(size.width, maxSize.width));
+    size.height = Math.max(40, Math.min(size.height, maxSize.height));
     this._size = size;
     this._maxSize = maxSize;
 
     this._isFocused = false;
     this._isDragging = false;
     this._dragOffset = { x: 0, y: 0 };
+    this._selectedCategory = 0;
 
-    this._initWindow(title, position);
+    this._initWindow(title, position, categoryOrientation, categoryName, categoryIcon, customContainer);
     this._addEventListener();
     this._onFocus();
 
@@ -48,7 +63,14 @@ export class Window {
   }
 
   // ..
-  _initWindow(title: string, position: Vector2) {
+  _initWindow(
+    title: string,
+    position: Vector2,
+    categoryOrientation: WindowCategoryOrientation,
+    categoryName: string,
+    categoryIcon: string,
+    customContainer?: HTMLDivElement
+  ) {
     // Create a window element
     const window = document.createElement("div");
     window.classList.add("ui-window");
@@ -56,17 +78,18 @@ export class Window {
     this._window = window;
 
     // Set it's size constraints
-    this._window.style.width = `${this._size.x}px`;
-    this._window.style.height = `${this._size.y}px`;
-    this._window.style.maxWidth = `${this._maxSize.x}px`;
-    this._window.style.maxHeight = `${this._maxSize.y}px`;
+    this._window.style.left = `${position.x}px`;
+    this._window.style.top = `${position.y}px`;
+    this._window.style.width = `${this._size.width}px`;
+    this._window.style.height = `${this._size.height}px`;
+    this._window.style.maxWidth = `${this._maxSize.width}px`;
+    this._window.style.maxHeight = `${this._maxSize.height}px`;
 
     // Create a titlebar
     const titlebar = document.createElement("div");
     titlebar.classList.add("ui-window__titlebar");
     this._window.appendChild(titlebar);
     this._titlebar = titlebar;
-
     const titleSpan = document.createElement("span");
     titleSpan.classList.add("ui-window__title");
     titleSpan.textContent = title;
@@ -77,14 +100,6 @@ export class Window {
     controlsContainer.classList.add("ui-window__controls");
     this._titlebar.appendChild(controlsContainer);
 
-    const settingsButton = document.createElement("button");
-    settingsButton.classList.add("ui-window__title-button");
-    const settingsIcon = document.createElement("img");
-    settingsIcon.src = "./assets/icons/settings.svg";
-    settingsButton.appendChild(settingsIcon);
-    controlsContainer.appendChild(settingsButton);
-    this._settingsButton = settingsButton;
-
     const closeButton = document.createElement("button");
     closeButton.classList.add("ui-window__title-button");
     const closeIcon = document.createElement("img");
@@ -93,14 +108,45 @@ export class Window {
     controlsContainer.appendChild(closeButton);
     this._closeButton = closeButton;
 
-    // Create Content container
-    const container = document.createElement("div");
-    container.classList.add("ui-window__content");
-    this._window.appendChild(container);
-    this._container = container;
+    // Create main content area
+    const contentArea = document.createElement("div");
+    contentArea.classList.add("ui-window__content-area");
+    contentArea.style.flexDirection = categoryOrientation === "left" || categoryOrientation === "right" ? "row" : "column";
+    this._window.appendChild(contentArea);
+    this._contentArea = contentArea;
 
-    this._window.style.left = `${position.x}px`;
-    this._window.style.top = `${position.y}px`;
+    // Create category strip
+    const categoryStrip = document.createElement("div");
+    categoryStrip.classList.add("ui-window__category-strip", `strip-${categoryOrientation}`);
+    this._categoryStrip = categoryStrip;
+
+    // Create content container wrapper
+    const contentContainer = document.createElement("div");
+    contentContainer.classList.add("ui-window__content-container");
+    this._contentContainer = contentContainer;
+
+    if (categoryOrientation === "left" || categoryOrientation === "top") {
+      contentArea.appendChild(categoryStrip);
+      contentArea.appendChild(contentContainer);
+    } else {
+      contentArea.appendChild(contentContainer);
+      contentArea.appendChild(categoryStrip);
+    }
+
+    // Create first content panel
+    let container = null;
+    if (customContainer) {
+      container = customContainer;
+    } else {
+      container = document.createElement("div");
+      container.classList.add("ui-window__content");
+    }
+    container.id = "container-0";
+    contentContainer.appendChild(container);
+    this._containers.push(container);
+
+    // Create a category for this first content panel
+    this._createNewCategory(categoryName, categoryIcon, 0);
   }
 
   // ..
@@ -229,74 +275,191 @@ export class Window {
     }
   }
 
+  // ..
+  _showCategory(index: Index) {
+    this._selectedCategory = index;
+
+    this._containers.forEach((item, i) => {
+      item.style.display = i === index ? "" : "none";
+    });
+
+    const buttons = this._categoryStrip.querySelectorAll(".ui-window__category-button");
+    buttons.forEach((btn, i) => {
+      if (i === index) btn.classList.add("active");
+      else btn.classList.remove("active");
+    });
+  }
+
+  _createNewCategory(label: string, icon: string, index: Index) {
+    // Create a new category button
+    const newButton = document.createElement("button");
+    newButton.classList.add("ui-window__category-button");
+
+    // Create a icon for this button
+    const categoryIcon = document.createElement("img");
+    categoryIcon.alt = label;
+    categoryIcon.src = icon;
+    newButton.title = label;
+    categoryIcon.classList.add("ui-window__category-icon");
+    newButton.appendChild(categoryIcon);
+
+    // Add new category to the category strip
+    this._categoryButtons.push(newButton);
+    this._categoryStrip.appendChild(newButton);
+
+    // Bind listener for this button
+    newButton.addEventListener("click", () => this._showCategory(index));
+
+    return newButton;
+  }
+
   // ------ Public Methods ------
 
   // ..
-  addTitle(text: string): HTMLHeadingElement {
+  getAllCategoryContainer() {
+    return this._containers;
+  }
+
+  // ..
+  getAllCategoryButtons() {
+    return this._categoryButtons;
+  }
+
+  // ..
+  addCategory(name: string, icon: string, customContainer?: HTMLDivElement): HTMLButtonElement {
+    let newIndex: number = this._containers.length;
+
+    // Create a new container element
+    let newContainer = null;
+    if (customContainer) {
+      newContainer = customContainer;
+    } else {
+      newContainer = document.createElement("div");
+      newContainer.classList.add("ui-window__content");
+    }
+
+    newContainer.id = "container-" + newIndex;
+    newContainer.style.display = "none";
+    this._contentContainer.appendChild(newContainer);
+    this._containers.push(newContainer);
+
+    const button = this._createNewCategory(name, icon, newIndex);
+
+    // We have more than two categories, show category strip
+    this._categoryStrip.style.display = "flex";
+
+    return button;
+  }
+
+  // ..
+  addCategorySpacer(): HTMLDivElement {
+    const spacerDiv = document.createElement("div");
+    spacerDiv.classList.add("ui-flex-spacer");
+    this._categoryStrip.appendChild(spacerDiv);
+
+    return spacerDiv;
+  }
+
+  // ..
+  addCategoryDivider(): HTMLDivElement {
+    const divElement = document.createElement("div");
+    divElement.classList.add("ui-flex-divider");
+    this._categoryStrip.appendChild(divElement);
+
+    return divElement;
+  }
+
+  // ..
+  addTitle(containerIndex: Index, text: string): HTMLHeadingElement | null {
+    // The container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
+
+    // Create a new title element
     const h2 = document.createElement("h2");
     h2.classList.add("ui-title");
     h2.textContent = text;
 
-    this._container.appendChild(h2);
+    // And append it to the containter
+    container.appendChild(h2);
     return h2;
   }
 
   // ..
-  addSection(text: string): HTMLHeadingElement {
+  addSection(containerIndex: Index, text: string): HTMLHeadingElement | null {
+    // The container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
+
+    // Create a new section element
     const h4 = document.createElement("h4");
     h4.classList.add("ui-section");
     h4.textContent = text;
 
-    this._container.appendChild(h4);
+    // And append it to the containter
+    container.appendChild(h4);
     return h4;
   }
 
   // ..
-  addDivider() {
+  addDivider(containerIndex: Index): HTMLDivElement | null {
+    // The container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
+
+    // Create a new divider element
     const divider = document.createElement("div");
     divider.classList.add("ui-window__divider");
 
-    this._container.appendChild(divider);
+    // And append it to the containter
+    container.appendChild(divider);
     return divider;
   }
 
   // ..
-  addText(text: string, color?: string, fontWeight?: string, id?: string) {
+  addText(containerIndex: Index, text: string, color?: string, fontWeight?: FontWeight, id?: string): HTMLParagraphElement | null {
+    // The container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
+
+    // Create a new paragraph element
     const p = document.createElement("p");
     p.classList.add("ui-text");
     p.textContent = text;
+
+    // Override properties
     if (color) {
       p.style.color = color;
+    }
+    if (id) {
+      p.id = id;
     }
     if (fontWeight) {
       p.style.fontWeight = fontWeight;
     }
-    if (id) {
-      p.id = id;
-    }
 
-    this._container.appendChild(p);
+    // And append it to the containter
+    container.appendChild(p);
     return p;
   }
 
   // ..
-  addBoldText(text: string, color?: string, id?: string) {
-    const p = document.createElement("p");
-    p.classList.add("ui-text");
-    p.innerHTML = `<strong>${text}</strong>`;
-    if (color) {
-      p.style.color = color;
-    }
-    if (id) {
-      p.id = id;
+  addLink(containerIndex: Index, text: string, url: string): HTMLParagraphElement | null {
+    // The container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
     }
 
-    this._container.appendChild(p);
-    return p;
-  }
-
-  // ..
-  addLink(text: string, url: string) {
+    // Create a new paragraph element with attached link
     const p = document.createElement("p");
     p.classList.add("ui-text");
     const link = document.createElement("a");
@@ -305,12 +468,20 @@ export class Window {
     link.target = "_blank";
     p.appendChild(link);
 
-    this._container.appendChild(p);
+    // And append it to the containter
+    container.appendChild(p);
     return p;
   }
 
   // ..
-  addBulletedList(items: string[]) {
+  addBulletedList(containerIndex: Index, items: string[]): HTMLUListElement | null {
+    // The container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
+
+    // Create a new unordered list element and append items to it
     const ul = document.createElement("ul");
     ul.classList.add("ui-text");
     items.forEach((itemText) => {
@@ -319,12 +490,20 @@ export class Window {
       ul.appendChild(li);
     });
 
-    this._container.appendChild(ul);
+    // And append it to the containter
+    container.appendChild(ul);
     return ul;
   }
 
   // ..
-  addNumberedList(items: string[]) {
+  addNumberedList(containerIndex: Index, items: string[]): HTMLOListElement | null {
+    // The container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
+
+    // Create a new ordered list element and append items to it
     const ol = document.createElement("ol");
     ol.classList.add("ui-text");
     items.forEach((itemText) => {
@@ -333,35 +512,50 @@ export class Window {
       ol.appendChild(li);
     });
 
-    this._container.appendChild(ol);
+    // And append it to the containter
+    container.appendChild(ol);
     return ol;
   }
 
   // ..
-  addImage(src: string, width: number, height: number, alt: string = "Placeholder Image") {
+  addImage(containerIndex: Index, src: string, alt: string, size: Size): HTMLImageElement | null {
+    // The container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
+
+    // Create a new image element
     const img = document.createElement("img");
     img.classList.add("ui-image");
     img.src = src;
     img.alt = alt;
-    img.width = width;
-    img.height = height;
+    img.width = size.width;
+    img.height = size.height;
 
-    this._container.appendChild(img);
+    // And append it to the containter
+    container.appendChild(img);
     return img;
   }
 
   // ..
-  addSlider(label: string, id: string, rangeMinMax: Vector2, defaultValue: number) {
-    const sliderLabel = label + ":";
-    const flexRow = document.createElement("div");
-    flexRow.classList.add("flex-row");
+  addSlider(containerIndex: Index, label: string, id: string, rangeMinMax: Vector2, defaultValue: number): HTMLDivElement | null {
+    // The container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
 
-    // Add label
+    // Create a divider element for the slider container
+    const sliderContainer = document.createElement("div");
+    sliderContainer.classList.add("flex-row");
+
+    // Create a label element and add it to the slider container
     const labelElement = document.createElement("label");
-    labelElement.textContent = sliderLabel;
-    flexRow.appendChild(labelElement);
+    labelElement.textContent = label + ":";
+    sliderContainer.appendChild(labelElement);
 
-    // Add slider range
+    // Create a slider range and add it to the slider container
     const rangeInput = document.createElement("input");
     rangeInput.type = "range";
     rangeInput.id = id + "-range";
@@ -371,9 +565,9 @@ export class Window {
     if (rangeMinMax.y - rangeMinMax.x < 2 && rangeMinMax.y > rangeMinMax.x) {
       rangeInput.step = (0.01).toString();
     }
-    flexRow.appendChild(rangeInput);
+    sliderContainer.appendChild(rangeInput);
 
-    // Add input text
+    // Create input text on the right and add it to the slider container
     const numberInput = document.createElement("input");
     numberInput.style.minWidth = "40px";
     numberInput.type = "number";
@@ -387,35 +581,53 @@ export class Window {
       rangeInput.value = val;
       numberInput.value = val;
     };
-    flexRow.appendChild(numberInput);
+    sliderContainer.appendChild(numberInput);
 
-    this._container.appendChild(flexRow);
-    return flexRow;
+    // And append it to the containter
+    container.appendChild(sliderContainer);
+    return sliderContainer;
   }
 
   // ..
-  addTextInput(label: string, id: string, placeholder: string = "", initialValue: string = "") {
-    const flexRow = document.createElement("div");
-    flexRow.classList.add("flex-row", "ui-text-input-container");
+  addTextInput(containerIndex: Index, label: string, placeholder: string, initialValue: string, id: string): HTMLDivElement | null {
+    // The window container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
 
+    // Create a new input container
+    const inputContainer = document.createElement("div");
+    inputContainer.classList.add("flex-row", "ui-text-input-container");
+
+    // Create a label element and add it to the input container
     const labelElement = document.createElement("label");
     labelElement.textContent = label + ":";
     labelElement.htmlFor = id;
-    flexRow.appendChild(labelElement);
+    inputContainer.appendChild(labelElement);
 
+    // Create an input element and add it to the input container
     const input = document.createElement("input");
     input.type = "text";
     input.id = id;
     input.placeholder = placeholder;
     input.value = initialValue;
-    flexRow.appendChild(input);
+    inputContainer.appendChild(input);
 
-    this._container.appendChild(flexRow);
-    return flexRow;
+    // Append input container to the window containter
+    container.appendChild(inputContainer);
+    return inputContainer;
   }
 
   // ..
-  addButton(text: string, id: string, bgColor?: string) {
+  addButton(containerIndex: Index, text: string, id: string, bgColor?: string): HTMLButtonElement | null {
+    // The window container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
+
+    // Create a new button element
     const button = document.createElement("button");
     button.classList.add("ui-window__content__Button");
     button.textContent = text;
@@ -424,35 +636,47 @@ export class Window {
       button.style.backgroundColor = bgColor;
     }
 
-    this._container.appendChild(button);
+    // Append button element to the window containter
+    container.appendChild(button);
     return button;
   }
 
   // ..
-  addDropdown(label: string, id: string, options: string[]) {
-    const dropdownLabel = label + ":";
-    const flexRow = document.createElement("div");
-    flexRow.classList.add("flex-row");
+  addDropdown(containerIndex: Index, label: string, id: string, options: string[]) {
+    // The window container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
 
-    const labelEl = document.createElement("label");
-    labelEl.textContent = dropdownLabel;
-    flexRow.appendChild(labelEl);
+    // Create a dropdown container element
+    const dropdownContainer = document.createElement("div");
+    dropdownContainer.classList.add("flex-row");
 
-    const container = document.createElement("div");
-    container.classList.add("custom-dropdown-container");
+    // Create a label element on the left
+    const labelElement = document.createElement("label");
+    labelElement.textContent = label + ":";
+    dropdownContainer.appendChild(labelElement);
 
+    // Create a dropdown items container element
+    const itemContainer = document.createElement("div");
+    itemContainer.classList.add("custom-dropdown-container");
+
+    // Create dropdown button and append it to the dropdown items
     const button = document.createElement("div");
     button.classList.add("dropdown-button");
     button.innerHTML = `
           <span id="${id}-display">${options[0]}</span>
       `;
-    container.appendChild(button);
+    itemContainer.appendChild(button);
 
+    // Create list of the dropdown items
     const list = document.createElement("ul");
     list.classList.add("dropdown-list");
     list.id = id + "-list";
-    container.appendChild(list);
+    itemContainer.appendChild(list);
 
+    // Create items for dropdown items and append them
     let selectedIndex = 0;
     let items: HTMLElement[] = [];
     options.forEach((optionText, index) => {
@@ -463,10 +687,12 @@ export class Window {
       item.dataset.value = optionText.toLowerCase().replace(/\s/g, "-");
       item.dataset.index = index.toString();
 
+      // Select the first item
       if (index === selectedIndex) {
         item.classList.add("is-selected");
       }
 
+      // Add listener for this item
       item.addEventListener("click", (event) => {
         event.stopPropagation();
         items[selectedIndex]!.classList.remove("is-selected");
@@ -480,6 +706,7 @@ export class Window {
       items.push(item);
     });
 
+    // Add listener for the dropdown button
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       document.querySelectorAll(".dropdown-list.is-open").forEach((otherList) => {
@@ -499,46 +726,60 @@ export class Window {
         list.scrollTop = shiftUpAmount;
       }
     });
-    flexRow.appendChild(container);
+    dropdownContainer.appendChild(itemContainer);
 
-    this._container.appendChild(flexRow);
-    return flexRow;
+    // Append dropdown container to the window containter
+    container.appendChild(dropdownContainer);
+    return dropdownContainer;
   }
 
   // ..
-  addToggleSwitch(label: string, id: string, initialState: boolean = false) {
-    const toggleLabel = label + ":";
-    const flexRow = document.createElement("div");
-    flexRow.classList.add("flex-row");
+  addToggleSwitch(containerIndex: Index, label: string, id: string, initialState: boolean = false) {
+    // The window container does not exist at this index, return
+    const container = this._containers[containerIndex];
+    if (!container) {
+      return null;
+    }
 
+    // Create a container element for toggle switch
+    const toggleContianer = document.createElement("div");
+    toggleContianer.classList.add("flex-row");
+
+    // Create a label element on the left
     const labelElement = document.createElement("label");
-    labelElement.textContent = toggleLabel;
-    flexRow.appendChild(labelElement);
+    labelElement.textContent = label + ":";
+    toggleContianer.appendChild(labelElement);
 
-    const container = document.createElement("div");
-    container.classList.add("toggle-container");
+    // Create container for the toggle button
+    const buttonContainer = document.createElement("div");
+    buttonContainer.classList.add("toggle-container");
 
+    // Create toggle button element
     const switchElement = document.createElement("div");
     switchElement.classList.add("toggle-switch");
     switchElement.id = id + "-switch";
 
+    // Set it's initial state
     if (initialState) {
       switchElement.classList.add("is-on");
     }
 
+    // Hook up css classes
     switchElement.innerHTML = `
           <span class="toggle-indicator indicator-o">O</span> 
           <span class="toggle-indicator indicator-i">I</span> 
           <div class="toggle-slider"></div>
       `;
 
+    // Add event listener to the toggle button
     switchElement.addEventListener("click", () => {
       switchElement.classList.toggle("is-on");
     });
-    container.appendChild(switchElement);
-    flexRow.appendChild(container);
+    buttonContainer.appendChild(switchElement);
+    toggleContianer.appendChild(buttonContainer);
 
-    this._container.appendChild(flexRow);
-    return flexRow;
+    // Append toggle switch container to the window containter
+    container.appendChild(toggleContianer);
+    return toggleContianer;
   }
 }

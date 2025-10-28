@@ -10,7 +10,8 @@ export class Renderer {
   #renderHeight: number;
   #frameBuffer: Uint8ClampedArray;
   #queuedParticles: Particle[];
-  #queuedOverlayPixels: Map<Index, Color>;
+  #queuedOverlayPixels: Pixel[];
+  #queuedUIPixels: Pixel[];
 
   constructor(canvas: HTMLCanvasElement, settings: GameSettings) {
     // Load DOM dependencies
@@ -21,7 +22,8 @@ export class Renderer {
     this.#renderHeight = settings.GAME_HEIGHT;
     this.#frameBuffer = new Uint8ClampedArray(this.#renderWidth * this.#renderHeight * 4);
     this.#queuedParticles = [];
-    this.#queuedOverlayPixels = new Map();
+    this.#queuedOverlayPixels = [];
+    this.#queuedUIPixels = [];
 
     // Initialise HTML elements
     this.#canvas.width = this.#renderWidth;
@@ -29,6 +31,14 @@ export class Renderer {
     this.#ctx.imageSmoothingEnabled = false;
     this.#ctx.translate(0, this.#canvas.height);
     this.#ctx.scale(1, -1);
+  }
+
+  // ..
+  queueUIPixels(pixelsToQueue: Pixel[]) {
+    // Clear previous pixels
+    this.#queuedUIPixels = [];
+
+    this.#queuedUIPixels = pixelsToQueue;
   }
 
   // ..
@@ -43,16 +53,14 @@ export class Renderer {
       for (const particle of particlesToQueue) {
         const flippedY: number = height - 1 - particle.position.y;
         const index: number = flippedY * width + particle.position.x;
-        this.#queuedOverlayPixels.set(index, debugOverlayColor);
+        this.#queuedOverlayPixels.push({ index: index, value: debugOverlayColor });
       }
     }
   }
 
   // ..
   queueOverlayPixels(pixelsToQueue: Pixel[]) {
-    for (const pixel of pixelsToQueue) {
-      this.#queuedOverlayPixels.set(pixel.index, pixel.value);
-    }
+    this.#queuedOverlayPixels.push(...pixelsToQueue);
   }
 
   // ..
@@ -62,7 +70,8 @@ export class Renderer {
 
     // Step 2. add overlay data
     let postProcessFrameBuffer: Uint8ClampedArray = new Uint8ClampedArray(this.#frameBuffer);
-    this.#addOverlayBuffer(postProcessFrameBuffer);
+    this.#addBuffer(postProcessFrameBuffer, this.#queuedOverlayPixels);
+    this.#addBuffer(postProcessFrameBuffer, this.#queuedUIPixels);
 
     // Step 3. render the final result
     const imageData: ImageData = new ImageData(postProcessFrameBuffer as ImageDataArray, this.#renderWidth, this.#renderHeight);
@@ -70,7 +79,7 @@ export class Renderer {
 
     // Step 4. clear any rendering data related to this frame
     this.#queuedParticles.length = 0;
-    this.#queuedOverlayPixels.clear();
+    this.#queuedOverlayPixels = [];
   }
 
   #processQueuedParticles() {
@@ -99,13 +108,8 @@ export class Renderer {
     return particle.color;
   }
 
-  #addOverlayBuffer(baseBuffer: Uint8ClampedArray) {
-    const overlayBuffer = this.#queuedOverlayPixels;
-
-    // Overlay buffer is empty, skip
-    if (overlayBuffer.size === 0) return;
-
-    for (const [index, color] of overlayBuffer) {
+  #addBuffer(baseBuffer: Uint8ClampedArray, overrideBuffer: Pixel[]) {
+    for (const { index, value } of overrideBuffer) {
       // Get RGBA channels of the base layer color
       const dr: number = baseBuffer[index * 4 + 0]!;
       const dg: number = baseBuffer[index * 4 + 1]!;
@@ -113,10 +117,10 @@ export class Renderer {
       const da: number = baseBuffer[index * 4 + 3]!;
 
       // Get RGBA channels of overlay color
-      const sr: number = color[0];
-      const sg: number = color[1];
-      const sb: number = color[2];
-      const sa: number = color[3];
+      const sr: number = value[0];
+      const sg: number = value[1];
+      const sb: number = value[2];
+      const sa: number = value[3];
 
       // Apply blending: outVal = sourse * sourse_alpha + dest * (1 - sourse_alpha)
       const normalSA = sa / 255.0;

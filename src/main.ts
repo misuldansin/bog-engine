@@ -56,7 +56,7 @@ async function initialize() {
 
     // ! debug: .. <
     console.log(loadedParticleData);
-    addDemoWindow(mainContainer);
+    // addDemoWindow(mainContainer);
     // ! debug: .. >
 
     // ..
@@ -67,33 +67,47 @@ async function initialize() {
 
 // ! temp: ..
 function addDemoWindow(hostElement: HTMLDivElement) {
-  const newWindow = new Window(hostElement, "New Window", { x: 80, y: 80 }, { x: 400, y: 600 }, { x: 400, y: 600 });
+  const newWindow = new Window(
+    hostElement,
+    "New Window",
+    { x: 80, y: 80 },
+    { width: 400, height: 600 },
+    { width: 400, height: 600 },
+    "left",
+    "Emitor",
+    "./assets/icons/solid.svg"
+  );
 
-  newWindow.addTitle("Particle Emitter Controls");
+  // newWindow.addCategorySpacer();
+  // newWindow.addCategory("Settings", "./assets/icons/liquid.svg");
+  // newWindow.addCategoryDivider();
+  // newWindow.addCategory("Settings", "./assets/icons/liquid.svg");
 
-  newWindow.addImage("assets/preview_image.jpg", 300, 100, "Preview Image");
-  newWindow.addText("Status: Core System Active", "#4cae50");
-  newWindow.addDivider();
+  newWindow.addTitle(0, "Particle Emitter Controls");
 
-  newWindow.addSection("Emitter");
-  newWindow.addTextInput("Name", "emitter-name", "Enter emitor name...");
-  newWindow.addDivider();
+  newWindow.addImage(0, "assets/preview_image.jpg", "Preview Image", { width: 300, height: 100 });
+  newWindow.addText(0, "Status: Core System Active", "#4cae50");
+  newWindow.addDivider(0);
 
-  newWindow.addSection("Brush Parameters");
-  newWindow.addSlider("Brush Size", "brush-size", { x: 1, y: 100 }, 20);
-  newWindow.addSlider("Opacity", "opacity-val", { x: 0, y: 1 }, 0.7);
-  newWindow.addToggleSwitch("Smooth", "brush-smooth", false);
-  newWindow.addDropdown("Render Mode", "render-mode", ["Fastest", "High Quality", "Wireframe", "Debug"]);
-  newWindow.addDivider();
+  newWindow.addSection(0, "Emitter");
+  newWindow.addTextInput(0, "Emittor Name", "Enter emitor name...", "", "emitter-name");
+  newWindow.addDivider(0);
 
-  newWindow.addSection("Particle Type");
+  newWindow.addSection(0, "Brush Parameters");
+  newWindow.addSlider(0, "Brush Size", "brush-size", { x: 1, y: 100 }, 20);
+  newWindow.addSlider(0, "Opacity", "opacity-val", { x: 0, y: 1 }, 0.7);
+  newWindow.addToggleSwitch(0, "Smooth", "brush-smooth", false);
+  newWindow.addDropdown(0, "Render Mode", "render-mode", ["Fastest", "High Quality", "Wireframe", "Debug"]);
+  newWindow.addDivider(0);
+
+  newWindow.addSection(0, "Particle Type");
   for (let i = 1; i <= 3; i++) {
-    newWindow.addButton(`Particle Type ${i}`, `particle-${i}`);
+    newWindow.addButton(0, `Particle Type ${i}`, `particle-${i}`);
   }
 
-  newWindow.addDivider();
-  newWindow.addButton("Start Simulation", "start-sim", "#5a6cd4ff");
-  newWindow.addButton("Save Preset", "save-preset");
+  newWindow.addDivider(0);
+  newWindow.addButton(0, "Start Simulation", "start-sim", "#5a6cd4ff");
+  newWindow.addButton(0, "Save Preset", "save-preset");
 }
 
 // Initialise App
