@@ -79,19 +79,17 @@ export class Window {
 
     const settingsButton = document.createElement("button");
     settingsButton.classList.add("ui-window__title-button");
-    settingsButton.innerHTML = "⚙️";
+    const settingsIcon = document.createElement("img");
+    settingsIcon.src = "./assets/icons/settings.svg";
+    settingsButton.appendChild(settingsIcon);
     controlsContainer.appendChild(settingsButton);
     this._settingsButton = settingsButton;
 
-    const pinButton = document.createElement("button");
-    pinButton.classList.add("ui-window__title-button");
-    pinButton.innerHTML = "📌";
-    controlsContainer.appendChild(pinButton);
-    this._pinButton = pinButton;
-
     const closeButton = document.createElement("button");
     closeButton.classList.add("ui-window__title-button");
-    closeButton.innerHTML = "❎";
+    const closeIcon = document.createElement("img");
+    closeIcon.src = "./assets/icons/close.svg";
+    closeButton.appendChild(closeIcon);
     controlsContainer.appendChild(closeButton);
     this._closeButton = closeButton;
 

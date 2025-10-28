@@ -92,7 +92,7 @@ function addDemoWindow(hostElement: HTMLDivElement) {
   }
 
   newWindow.addDivider();
-  newWindow.addButton("Start Simulation", "start-sim", "#4c5dbb");
+  newWindow.addButton("Start Simulation", "start-sim", "#5a6cd4ff");
   newWindow.addButton("Save Preset", "save-preset");
 }
 
