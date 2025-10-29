@@ -554,7 +554,7 @@ input[type="text"]:focus {
   background-color: #2c303b;
   border: 1px solid #222731;
   border-radius: 6px;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
   display: none;
   z-index: 200;
   transform: translateY(10px);

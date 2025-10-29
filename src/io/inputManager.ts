@@ -1,4 +1,4 @@
-import type { Color, GameSettings, ParticleMap, Pixel, Size, Vector2 } from "../types";
+import type { Color, ContentBarOrientation, GameSettings, ParticleMap, Pixel, Size, Vector2 } from "../types";
 import type { Renderer } from "../io/renderer";
 import type { Grid } from "../structs/grid";
 
@@ -70,6 +70,9 @@ export class InputManager {
 
     // Add particle palette window
     this._addParticlePaletteWindow(particleDataMap);
+
+    //
+    document.addEventListener("click", this._handleGlobalClick);
   }
 
   // --------- Public Methods ---------
@@ -281,6 +284,13 @@ export class InputManager {
     electronicsContent.classList.add("particle-palette-container");
     paletteWindow.addNewContent(electronicsContent, "Electronics", "./assets/icons/electronics.svg");
     const settingsContent = new WindowContent();
+    let orientationButton = settingsContent.addDropdownButton("Orientation", ["Left", "Right", "Top", "Bottom"], 3, "palette-orientation");
+    orientationButton.items.forEach((item) => {
+      item.addEventListener("click", () => {
+        const newOrientation = item.dataset.value as ContentBarOrientation;
+        if (newOrientation) paletteWindow.setContentOrientation(newOrientation);
+      });
+    });
     paletteWindow.addContentBarSpacer();
     paletteWindow.addNewContent(settingsContent.contentElement, "Settings", "./assets/icons/settings.svg");
 
@@ -378,6 +388,18 @@ export class InputManager {
       }
     }
   }
+
+  // ..
+  _handleGlobalClick = (event: MouseEvent) => {
+    document.querySelectorAll(".dropdown-list.is-open").forEach((list) => {
+      const originId = (list as HTMLElement).dataset.originId;
+      const originContainer = originId ? document.getElementById(originId) : null;
+      if (!list.contains(event.target as Node) && !originContainer?.contains(event.target as Node)) {
+        list.classList.remove("is-open");
+        originContainer?.appendChild(list);
+      }
+    });
+  };
 
   // Function to generate the overlay map for the circle outline
   _calculateBrushOutline(centerX: number, centerY: number): Pixel[] {

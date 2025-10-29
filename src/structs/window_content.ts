@@ -1,4 +1,4 @@
-import type { FontWeight, Size, Vector2 } from "../types";
+import type { FontWeight, Index, Size, Vector2 } from "../types";
 
 export class WindowContent {
   contentElement: HTMLDivElement;
@@ -201,7 +201,12 @@ export class WindowContent {
   }
 
   // ..
-  addDropdownButton(label: string, options: string[], id?: string): HTMLDivElement {
+  addDropdownButton(
+    label: string,
+    options: string[],
+    selectedOption: Index = 0,
+    id?: string
+  ): { button: HTMLDivElement; items: HTMLLIElement[] } {
     const dropdownRowEl = document.createElement("div");
     dropdownRowEl.classList.add("flex-row");
 
@@ -231,7 +236,7 @@ export class WindowContent {
     dropdownContentEl.appendChild(dropdownListEl);
 
     // Populate the dropdown list
-    let selectedIndex = 0;
+    let selectedIndex = Math.max(0, Math.min(selectedOption, options.length - 1));
     const items: HTMLLIElement[] = [];
     for (let i = 0; i < options.length; i++) {
       const optionText = options[i]!;
@@ -245,6 +250,7 @@ export class WindowContent {
       // Select the first item
       if (i === selectedIndex) {
         itemEl.classList.add("is-selected");
+        displaySpanEl.textContent = optionText;
       }
 
       // Add listener for this item
@@ -265,28 +271,48 @@ export class WindowContent {
     dropdownButtonEl.addEventListener("click", (event) => {
       event.stopPropagation();
       const isOpen = dropdownListEl.classList.toggle("is-open");
-      if (isOpen) {
-        const buttonRect = dropdownButtonEl.getBoundingClientRect();
-        const listItems = dropdownListEl.querySelectorAll(".dropdown-item");
-        const selectedItem = dropdownListEl.querySelector(".dropdown-item.is-selected") as HTMLElement | null;
 
+      if (isOpen) {
+        const originalParent = dropdownListEl.parentElement!;
+        dropdownListEl.dataset.originId = dropdownContentEl.id;
+        document.body.appendChild(dropdownListEl);
+
+        const buttonRect = dropdownButtonEl.getBoundingClientRect();
+        const listRect = dropdownListEl.getBoundingClientRect();
+        const listHeight = dropdownListEl.scrollHeight || listRect.height;
+        const viewportH = document.documentElement.clientHeight;
+
+        dropdownListEl.style.position = "absolute";
+        dropdownListEl.style.left = `${buttonRect.left}px`;
+        dropdownListEl.style.width = `${buttonRect.width}px`;
+        dropdownListEl.style.zIndex = "9999";
+
+        const selectedItem = dropdownListEl.querySelector(".dropdown-item.is-selected");
         if (selectedItem) {
-          const itemRect = selectedItem.getBoundingClientRect();
-          const listRect = dropdownListEl.getBoundingClientRect();
-          const buttonHeight = buttonRect.height;
-          const itemHeight = itemRect.height;
-          const selectedIndex = Array.from(listItems).indexOf(selectedItem);
-          const shiftUp = selectedIndex * itemHeight + 6;
-          dropdownListEl.style.transform = "none";
-          dropdownListEl.style.top = `${buttonHeight - shiftUp - itemHeight}px`;
-          dropdownListEl.scrollTop = shiftUp;
+          const offsetInList = (selectedItem as HTMLElement).offsetTop;
+          let desiredTop = buttonRect.top - offsetInList;
+          if (desiredTop < 0) desiredTop = 0;
+          if (desiredTop + listHeight > viewportH) desiredTop = Math.max(0, viewportH - listHeight);
+          dropdownListEl.style.top = `${Math.round(desiredTop)}px`;
+          dropdownListEl.scrollTop = offsetInList;
+        } else {
+          let desiredTop = buttonRect.bottom;
+          if (desiredTop + listHeight > viewportH) {
+            desiredTop = Math.max(0, viewportH - listHeight);
+          }
+          dropdownListEl.style.top = `${Math.round(desiredTop)}px`;
+          dropdownListEl.scrollTop = 0;
+        }
+      } else {
+        if (dropdownListEl.parentElement === document.body) {
+          dropdownContentEl.appendChild(dropdownListEl);
         }
       }
     });
 
     // Append the new dropdown button
     this.contentElement.appendChild(dropdownRowEl);
-    return dropdownButtonEl;
+    return { button: dropdownButtonEl, items: items };
   }
 
   // ..
