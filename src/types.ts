@@ -31,7 +31,7 @@ export type Index = number;
 export type Color = [number, number, number, number] & Uint8ClampedArray;
 export type Pixel = { index: number; value: Color };
 
-export type WindowCategoryOrientation = "left" | "right" | "top" | "bottom";
+export type ContentBarOrientation = "left" | "right" | "top" | "bottom";
 export type FontWeight = "normal" | "bold" | "bolder" | "lighter";
 
 // --------- PARTICLE TYPES ---------

@@ -7,6 +7,7 @@ import { Engine } from "./core/engine";
 import { InputManager } from "./io/inputManager";
 import { Debug } from "./io/debug";
 import { Window } from "./structs/window";
+import { WindowContent } from "./structs/window_content";
 
 async function initialize() {
   try {
@@ -67,48 +68,72 @@ async function initialize() {
 }
 
 // ! temp: ..
-function addDemoWindow(hostElement: HTMLDivElement) {
-  const newWindow = new Window(
-    hostElement,
-    "New Window",
-    { x: 80, y: 80 },
-    { width: 400, height: 600 },
-    { width: 400, height: 600 },
-    "left",
-    "Emitor",
-    "./assets/icons/solid.svg"
-  );
+function addDemoWindow(hostEl: HTMLDivElement) {
+  // Create a window
+  const position = { x: 80, y: 80 };
+  const size = { width: 380, height: 600 };
+  const maxSize = { width: 380, height: 600 };
+  const demoWindow = new Window(hostEl, "Demo Window", position, size, maxSize);
 
-  // newWindow.addCategorySpacer();
-  // newWindow.addCategory("Settings", "./assets/icons/liquid.svg");
-  // newWindow.addCategoryDivider();
-  // newWindow.addCategory("Settings", "./assets/icons/liquid.svg");
+  // --- Emitor Controls ---
+  const newContent = new WindowContent();
+  newContent.addTitle("Emitter Controls");
 
-  newWindow.addTitle(0, "Particle Emitter Controls");
+  const imageSize = { width: 300, height: 100 };
+  newContent.addImage(imageSize, "./assets/preview_image.jpg", "Windows XP Background Image");
 
-  newWindow.addImage(0, "assets/preview_image.jpg", "Preview Image", { width: 300, height: 100 });
-  newWindow.addText(0, "Status: Core System Active", "#4cae50");
-  newWindow.addDivider(0);
+  newContent.addText("Server Status: Source code loaded.", "#4cae50");
+  newContent.addSpacer(1);
 
-  newWindow.addSection(0, "Emitter");
-  newWindow.addTextInput(0, "Emittor Name", "Enter emitor name...", "", "emitter-name");
-  newWindow.addDivider(0);
+  newContent.addSection("Emitor Settings");
+  newContent.addSlider("Emitor Size", 0, 38, 14, 1);
+  newContent.addSlider("Opacity", 0, 1, 0.9, 0.01);
+  newContent.addToggleSwitch("Anti-aliasing");
+  newContent.addDropdownButton("GPU Render Mode", ["Fastest", "High Quality", "Wireframe", "Debug"]);
+  newContent.addSpacer(1);
 
-  newWindow.addSection(0, "Brush Parameters");
-  newWindow.addSlider(0, "Brush Size", "brush-size", { x: 1, y: 100 }, 20);
-  newWindow.addSlider(0, "Opacity", "opacity-val", { x: 0, y: 1 }, 0.7);
-  newWindow.addToggleSwitch(0, "Smooth", "brush-smooth", false);
-  newWindow.addDropdown(0, "Render Mode", "render-mode", ["Fastest", "High Quality", "Wireframe", "Debug"]);
-  newWindow.addDivider(0);
+  newContent.addSection("Save & Load");
+  newContent.addButton("Save Emitor", "save-emitor", "#73a2e0ff");
+  newContent.addButton("Load Emitor", "load-emitor", "#84da62ff");
+  newContent.addButton("Delete Emitor", "delete-emitor", "#e04e4eff");
 
-  newWindow.addSection(0, "Particle Type");
-  for (let i = 1; i <= 3; i++) {
-    newWindow.addButton(0, `Particle Type ${i}`, `particle-${i}`);
-  }
+  // Add this content to the window
+  demoWindow.addNewContent(newContent.contentElement, "Emitor Controls", "./assets/icons/electronics.svg");
 
-  newWindow.addDivider(0);
-  newWindow.addButton(0, "Start Simulation", "start-sim", "#5a6cd4ff");
-  newWindow.addButton(0, "Save Preset", "save-preset");
+  // --- Settings Content ---
+  const settingsContent = new WindowContent();
+  settingsContent.addTitle("Application Settings");
+
+  settingsContent.addSection("Display");
+  settingsContent.addDropdownButton("Theme", [
+    "Light",
+    "Dark",
+    "System Default",
+    "Cyan",
+    "party",
+    "Amogus",
+    "Sus",
+    "nerd",
+    "nerd2",
+    "nerd3",
+  ]);
+  settingsContent.addSlider("Brightness", 0, 100, 75, 1);
+  settingsContent.addToggleSwitch("Enable Animations");
+  settingsContent.addSpacer(1);
+
+  settingsContent.addSection("Performance");
+  settingsContent.addDropdownButton("Render Backend", ["Auto", "WebGPU", "WebGL"]);
+  settingsContent.addToggleSwitch("Use Hardware Acceleration");
+  settingsContent.addSlider("Max FPS", 30, 240, 120, 10);
+  settingsContent.addSpacer(1);
+
+  settingsContent.addSection("System");
+  settingsContent.addButton("Reset Settings", "reset-settings", "#e04e4eff");
+  settingsContent.addButton("Check for Updates", "check-updates");
+
+  // Add this content to the window
+  demoWindow.addContentBarSpacer();
+  demoWindow.addNewContent(settingsContent.contentElement, "Settings", "./assets/icons/settings.svg");
 }
 
 // Initialise App

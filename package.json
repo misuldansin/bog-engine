@@ -18,11 +18,11 @@
     "vite-plugin-static-copy": "^3.1.4"
   },
   "scripts": {
-    "dev": "vite",
+    "server": "vite",
     "build": "tsc && vite build",
     "start": "node dist/main.js",
     "preview": "vite preview",
-    "predeploy": "npm run prod:build", 
+    "predeploy": "npm run prod:build",
     "deploy": "gh-pages -d dist",
     "prod:build": "npm run build && npx google-closure-compiler --js ./dist/assets/index-*.js --js_output_file ./dist/optimized/final.js --compilation_level ADVANCED_OPTIMIZATIONS --language_in ECMASCRIPT_2020 --language_out ECMASCRIPT_2020 --warning_level VERBOSE",
     "optimize": "npm run build && npx google-closure-compiler --js ./dist/assets/index-*.js --js_output_file ./dist/optimized/final.js --compilation_level ADVANCED_OPTIMIZATIONS --language_in ECMASCRIPT_NEXT --language_out ECMASCRIPT_NEXT --warning_level VERBOSE"

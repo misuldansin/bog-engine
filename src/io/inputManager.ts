@@ -4,6 +4,7 @@ import type { Grid } from "../structs/grid";
 
 import { color } from "../structs/color_utils";
 import { Window } from "../structs/window";
+import { WindowContent } from "../structs/window_content";
 
 export class InputManager {
   // DOMs and dependencies
@@ -68,7 +69,7 @@ export class InputManager {
     this._addEventListeners();
 
     // Add particle palette window
-    this._addParticlePalette(particleDataMap);
+    this._addParticlePaletteWindow(particleDataMap);
   }
 
   // --------- Public Methods ---------
@@ -255,53 +256,43 @@ export class InputManager {
   };
 
   // ..
-  _addParticlePalette(particleDataMap: ParticleMap) {
-    // Create a new window for particle palette
+  _addParticlePaletteWindow(particleDataMap: ParticleMap) {
+    // Create a new window
     const position: Vector2 = { x: 320, y: 300 };
     const size: Size = { width: 250, height: 200 };
     const maxSize: Size = { width: 420, height: 400 };
+    const paletteWindow = new Window(this._mainContainer, "Particle Palette", position, size, maxSize);
+    paletteWindow.setContentOrientation("bottom");
 
-    const solidsContainer = document.createElement("div");
-    solidsContainer.classList.add("particle-palette-container");
-    const particlePalette = new Window(
-      this._mainContainer,
-      "Particle Palette",
-      position,
-      size,
-      maxSize,
-      "bottom",
-      "Solids",
-      "./assets/icons/solid.svg",
-      solidsContainer
-    );
-    const liquidsContainer = document.createElement("div");
-    liquidsContainer.classList.add("particle-palette-container");
-    particlePalette.addCategory("Liquids", "./assets/icons/liquid.svg", liquidsContainer);
+    // Add contents for solids, liquids, gases, sands, electronics and settings
+    const solidsContent = document.createElement("div");
+    solidsContent.classList.add("particle-palette-container");
+    paletteWindow.addNewContent(solidsContent, "Solids", "./assets/icons/solid.svg");
+    const liquidsContent = document.createElement("div");
+    liquidsContent.classList.add("particle-palette-container");
+    paletteWindow.addNewContent(liquidsContent, "Liquids", "./assets/icons/liquid.svg");
+    const gasesContent = document.createElement("div");
+    gasesContent.classList.add("particle-palette-container");
+    paletteWindow.addNewContent(gasesContent, "Gases", "./assets/icons/gas.svg");
+    const sandsContent = document.createElement("div");
+    sandsContent.classList.add("particle-palette-container");
+    paletteWindow.addNewContent(sandsContent, "Sands", "./assets/icons/sand.svg");
+    const electronicsContent = document.createElement("div");
+    electronicsContent.classList.add("particle-palette-container");
+    paletteWindow.addNewContent(electronicsContent, "Electronics", "./assets/icons/electronics.svg");
+    const settingsContent = new WindowContent();
+    paletteWindow.addContentBarSpacer();
+    paletteWindow.addNewContent(settingsContent.contentElement, "Settings", "./assets/icons/settings.svg");
 
-    const gasesContainer = document.createElement("div");
-    gasesContainer.classList.add("particle-palette-container");
-    particlePalette.addCategory("Gases", "./assets/icons/gas.svg", gasesContainer);
-
-    const sandsContainer = document.createElement("div");
-    sandsContainer.classList.add("particle-palette-container");
-    particlePalette.addCategory("Sands", "./assets/icons/sand.svg", sandsContainer);
-
-    const electronicsContainer = document.createElement("div");
-    electronicsContainer.classList.add("particle-palette-container");
-    particlePalette.addCategory("Electronics", "./assets/icons/electronics.svg", electronicsContainer);
-
-    particlePalette.addCategorySpacer();
-    particlePalette.addCategory("Settings", "./assets/icons/settings.svg");
-
-    // Select liquids
-    particlePalette._showCategory(1);
-    this._selectedCategory = 2;
-
-    // Get category containers
-    const categoryContainers: HTMLDivElement[] = particlePalette.getAllCategoryContainer();
-    const categoryButtons: HTMLButtonElement[] = particlePalette.getAllCategoryButtons();
+    // Select category liquids
+    const liquidsCategory = 2;
+    const liquidsCategoryIndex = liquidsCategory - 1;
+    paletteWindow.displayContent(liquidsCategoryIndex);
+    this._selectedCategory = liquidsCategory;
 
     // Add custom event listener for category buttons
+    const categoryButtons: HTMLButtonElement[] = paletteWindow.contentBarButtons;
+    const categoryContainers: HTMLDivElement[] = paletteWindow.contents;
     for (let i = 0; i < categoryButtons.length - 1; i++) {
       categoryButtons[i]!.addEventListener("click", () => {
         // Deselect all currently selected particle buttons
