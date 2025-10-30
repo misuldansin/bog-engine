@@ -292,7 +292,7 @@ export class InputManager {
         if (newOrientation) paletteWindow.setContentOrientation(newOrientation);
       });
     });
-    paletteWindow.addContentBarSeparator();
+    paletteWindow.addContentBarSeparator(true);
     paletteWindow.addNewContent(settingsContent.contentElement, "Settings", "./assets/icons/settings.svg");
 
     // Select category liquids

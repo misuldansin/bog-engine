@@ -315,14 +315,14 @@ export class Window {
 
   // ..
   addContentBarSeparator(isSpacer: boolean = false): HTMLDivElement {
-    const dividerEl = document.createElement("div");
-    dividerEl.classList.add("ui-window__content-bar__separator");
+    const separatorEl = document.createElement("div");
+    separatorEl.classList.add("ui-window__content-bar__separator");
 
     if (isSpacer) {
-      dividerEl.classList.add("is-spacer");
+      separatorEl.classList.add("is-spacer");
     }
 
-    this.contentBarEl.appendChild(dividerEl);
-    return dividerEl;
+    this.contentBarEl.appendChild(separatorEl);
+    return separatorEl;
   }
 }

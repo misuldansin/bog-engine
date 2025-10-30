@@ -416,6 +416,7 @@ input[type="text"]:focus {
   opacity: 1;
 }
 .ui-window__content__dropdown-item {
+  color: #ccc;
   padding: 6px 8px;
   font-size: 0.9rem;
   cursor: pointer;
