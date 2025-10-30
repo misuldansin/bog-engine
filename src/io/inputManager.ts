@@ -261,10 +261,11 @@ export class InputManager {
   // ..
   _addParticlePaletteWindow(particleDataMap: ParticleMap) {
     // Create a new window
+    const name = "Particle Palette";
     const position: Vector2 = { x: 320, y: 300 };
     const size: Size = { width: 250, height: 200 };
     const maxSize: Size = { width: 420, height: 400 };
-    const paletteWindow = new Window(this._mainContainer, "Particle Palette", position, size, maxSize);
+    const paletteWindow = new Window(this._mainContainer, name, position, size, maxSize);
     paletteWindow.setContentOrientation("bottom");
 
     // Add contents for solids, liquids, gases, sands, electronics and settings
@@ -284,14 +285,14 @@ export class InputManager {
     electronicsContent.classList.add("particle-palette-container");
     paletteWindow.addNewContent(electronicsContent, "Electronics", "./assets/icons/electronics.svg");
     const settingsContent = new WindowContent();
-    let orientationButton = settingsContent.addDropdownButton("Orientation", ["Left", "Right", "Top", "Bottom"], 3, "palette-orientation");
+    let orientationButton = settingsContent.addDropdownButton("Orientation", ["Top", "Left", "Right", "Bottom"], 3, "palette-orientation");
     orientationButton.items.forEach((item) => {
       item.addEventListener("click", () => {
         const newOrientation = item.dataset.value as ContentBarOrientation;
         if (newOrientation) paletteWindow.setContentOrientation(newOrientation);
       });
     });
-    paletteWindow.addContentBarSpacer();
+    paletteWindow.addContentBarSeparator();
     paletteWindow.addNewContent(settingsContent.contentElement, "Settings", "./assets/icons/settings.svg");
 
     // Select category liquids
@@ -303,8 +304,11 @@ export class InputManager {
     // Add custom event listener for category buttons
     const categoryButtons: HTMLButtonElement[] = paletteWindow.contentBarButtons;
     const categoryContainers: HTMLDivElement[] = paletteWindow.contents;
+
     for (let i = 0; i < categoryButtons.length - 1; i++) {
       categoryButtons[i]!.addEventListener("click", () => {
+        if (this._selectedCategory === i + 1) return;
+
         // Deselect all currently selected particle buttons
         for (const container of categoryContainers) {
           const selectedButton = container.querySelector(".selected");
@@ -319,8 +323,11 @@ export class InputManager {
           const firstParticleButton = categoryContainer.querySelector<HTMLButtonElement>(".particle-button");
           if (firstParticleButton) {
             firstParticleButton.classList.add("selected");
-            this._selectedParticle = parseInt(firstParticleButton.dataset.particleId || "-1", 10);
-            this._selectedCategory = parseInt(firstParticleButton.dataset.category || "-1", 10);
+            this._selectedParticle = parseInt(firstParticleButton.dataset.particleId || "0", 10);
+            this._selectedCategory = parseInt(firstParticleButton.dataset.category || "0", 10);
+          } else {
+            this._selectedParticle = 0;
+            this._selectedCategory = 0;
           }
         }
       });

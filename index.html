@@ -6,13 +6,20 @@
     <title>Bog Engine</title>
 
     <!-- styles -->
-    <link rel="stylesheet" href="src/style.css" />
+    <link rel="stylesheet" href="src/styles/style.css" />
+    <link rel="stylesheet" href="src/styles/window_style.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" />
   </head>
 
-  <body class="app-body">
-    <div id="main-panel">
-      <canvas id="main-canvas" class="canvas"></canvas>
+  <body>
+    <div id="desktop">
+      <div id="menu-bar">
+        <div id="app-menu" class="app-bar"></div>
+      </div>
+
+      <div id="viewport">
+        <canvas id="render-surface" class="canvas"></canvas>
+      </div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

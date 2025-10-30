@@ -27,13 +27,13 @@ async function initialize() {
     Object.freeze(settings);
 
     // Get DOM references
-    const canvas: HTMLElement | null = document.getElementById("main-canvas");
+    const viewport: HTMLElement | null = document.getElementById("viewport");
+    if (!(viewport instanceof HTMLDivElement)) {
+      throw new Error("HTML element 'main-panel' does not exist.");
+    }
+    const canvas: HTMLElement | null = document.getElementById("render-surface");
     if (!(canvas instanceof HTMLCanvasElement)) {
       throw new Error("HTML element 'main-canvas' does not exist.");
-    }
-    const mainContainer: HTMLElement | null = document.getElementById("main-panel");
-    if (!(mainContainer instanceof HTMLDivElement)) {
-      throw new Error("HTML element 'main-panel' does not exist.");
     }
     canvas.style.aspectRatio = (settings.GAME_WIDTH / settings.GAME_HEIGHT).toString();
 
@@ -44,10 +44,10 @@ async function initialize() {
     const loadedParticleData = await loadParticleData("./src/data/particles.data");
 
     // Init Input Manager
-    const inputManager: InputManager = new InputManager(loadedParticleData, mainContainer, canvas, settings, renderer);
+    const inputManager: InputManager = new InputManager(loadedParticleData, viewport, canvas, settings, renderer);
 
     // Init Debugger
-    const debug: Debug = new Debug(mainContainer);
+    const debug: Debug = new Debug(viewport);
     debug.enableDebug(false);
 
     // Init Engine
@@ -58,7 +58,7 @@ async function initialize() {
 
     // ! debug: .. <
     console.log(loadedParticleData);
-    // addDemoWindow(mainContainer);
+    addDemoWindow(viewport);
     // ! debug: .. >
 
     // ..
@@ -72,7 +72,7 @@ function addDemoWindow(hostEl: HTMLDivElement) {
   // Create a window
   const position = { x: 80, y: 80 };
   const size = { width: 380, height: 600 };
-  const maxSize = { width: 380, height: 600 };
+  const maxSize = { width: 800, height: 1200 };
   const demoWindow = new Window(hostEl, "Demo Window", position, size, maxSize);
 
   // --- Emitor Controls ---
@@ -83,14 +83,14 @@ function addDemoWindow(hostEl: HTMLDivElement) {
   newContent.addImage(imageSize, "./assets/preview_image.jpg", "Windows XP Background Image");
 
   newContent.addText("Server Status: Source code loaded.", "#4cae50");
-  newContent.addSpacer(1);
+  newContent.addSeparator(1);
 
   newContent.addSection("Emitor Settings");
   newContent.addSlider("Emitor Size", 0, 38, 14, 1);
   newContent.addSlider("Opacity", 0, 1, 0.9, 0.01);
   newContent.addToggleSwitch("Anti-aliasing");
   newContent.addDropdownButton("GPU Render Mode", ["Fastest", "High Quality", "Wireframe", "Debug"]);
-  newContent.addSpacer(1);
+  newContent.addSeparator(1);
 
   newContent.addSection("Save & Load");
   newContent.addButton("Save Emitor", "save-emitor", "#73a2e0ff");
@@ -119,20 +119,20 @@ function addDemoWindow(hostEl: HTMLDivElement) {
   ]);
   settingsContent.addSlider("Brightness", 0, 100, 75, 1);
   settingsContent.addToggleSwitch("Enable Animations");
-  settingsContent.addSpacer(1);
+  settingsContent.addSeparator(1);
 
   settingsContent.addSection("Performance");
   settingsContent.addDropdownButton("Render Backend", ["Auto", "WebGPU", "WebGL"]);
   settingsContent.addToggleSwitch("Use Hardware Acceleration");
   settingsContent.addSlider("Max FPS", 30, 240, 120, 10);
-  settingsContent.addSpacer(1);
+  settingsContent.addSeparator(1);
 
   settingsContent.addSection("System");
   settingsContent.addButton("Reset Settings", "reset-settings", "#e04e4eff");
   settingsContent.addButton("Check for Updates", "check-updates");
 
   // Add this content to the window
-  demoWindow.addContentBarSpacer();
+  demoWindow.addContentBarSeparator(true);
   demoWindow.addNewContent(settingsContent.contentElement, "Settings", "./assets/icons/settings.svg");
 }
 

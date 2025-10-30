@@ -9,28 +9,25 @@ export class WindowContent {
   }
 
   // ..
-  addDivider(): HTMLDivElement {
-    const dividerEl = document.createElement("div");
-    dividerEl.classList.add("ui-window__divider");
+  addSeparator(heightPixel: number = 1, isVisible: boolean = false): HTMLDivElement {
+    const separatorEl = document.createElement("div");
+    separatorEl.classList.add("ui-window__content__separator");
+    separatorEl.style.height = `${heightPixel}px`;
 
-    this.contentElement.appendChild(dividerEl);
-    return dividerEl;
-  }
+    if (isVisible) {
+      const separatorLineEl = document.createElement("div");
+      separatorLineEl.classList.add("ui-window__content__separator__line");
+      separatorEl.appendChild(separatorLineEl);
+    }
 
-  // ..
-  addSpacer(heightPixel: number = 1): HTMLDivElement {
-    const spacerEl = document.createElement("div");
-    spacerEl.classList.add("ui-window__spacer");
-    spacerEl.style.height = `${heightPixel}px`;
-
-    this.contentElement.appendChild(spacerEl);
-    return spacerEl;
+    this.contentElement.appendChild(separatorEl);
+    return separatorEl;
   }
 
   // ..
   addTitle(text: string): HTMLHeadingElement {
     const titleEl = document.createElement("h3");
-    titleEl.classList.add("ui-title");
+    titleEl.classList.add("ui-window__content__heading-title");
     titleEl.textContent = text;
 
     this.contentElement.appendChild(titleEl);
@@ -40,7 +37,7 @@ export class WindowContent {
   // ..
   addSection(text: string): HTMLHeadingElement {
     const sectionEl = document.createElement("h4");
-    sectionEl.classList.add("ui-section");
+    sectionEl.classList.add("ui-window__content__heading-section");
     sectionEl.textContent = text;
 
     this.contentElement.appendChild(sectionEl);
@@ -50,7 +47,7 @@ export class WindowContent {
   // ..
   addText(text: string, color?: string, fontWeight?: FontWeight, id?: string): HTMLParagraphElement {
     const textEl = document.createElement("p");
-    textEl.classList.add("ui-text");
+    textEl.classList.add("ui-window__content__text");
     textEl.textContent = text;
     if (color != null) textEl.style.color = color;
     if (id != null) textEl.id = id;
@@ -63,7 +60,7 @@ export class WindowContent {
   // ..
   addLink(text: string, url: string, id?: string): HTMLParagraphElement {
     const linkEl = document.createElement("p");
-    linkEl.classList.add("ui-text");
+    linkEl.classList.add("ui-window__content__text");
     if (id != null) linkEl.id = id;
 
     const link = document.createElement("a");
@@ -79,10 +76,11 @@ export class WindowContent {
   // ..
   addBulletedList(items: string[]): HTMLUListElement {
     const bulletEl = document.createElement("ul");
-    bulletEl.classList.add("ui-text");
+    bulletEl.classList.add("ui-window__content");
 
     items.forEach((itemText) => {
       const ItemEl = document.createElement("li");
+      ItemEl.classList.add("ui-window__content");
       ItemEl.textContent = itemText;
       bulletEl.appendChild(ItemEl);
     });
@@ -94,10 +92,11 @@ export class WindowContent {
   // ..
   addNumberedList(items: string[]): HTMLOListElement {
     const numEl = document.createElement("ol");
-    numEl.classList.add("ui-text");
+    numEl.classList.add("ui-window__content");
 
     items.forEach((itemText) => {
       const ItemEl = document.createElement("li");
+      ItemEl.classList.add("ui-window__content");
       ItemEl.textContent = itemText;
       numEl.appendChild(ItemEl);
     });
@@ -109,7 +108,7 @@ export class WindowContent {
   // ..
   addImage(size: Size, src: string, alt: string, id?: string): HTMLImageElement {
     const imageEl = document.createElement("img");
-    imageEl.classList.add("ui-image");
+    imageEl.classList.add("ui-window__content__image");
     imageEl.src = src;
     imageEl.alt = alt;
     imageEl.width = size.width;
@@ -123,7 +122,7 @@ export class WindowContent {
   // ..
   addSlider(label: string, minRange: number, maxRange: number, defaultValue: number, steps: number, id?: string): HTMLDivElement {
     const sliderEl = document.createElement("div");
-    sliderEl.classList.add("flex-row");
+    sliderEl.classList.add("ui-window__helper__flex-row");
     if (id != null) sliderEl.id = id;
 
     // Create a label on the left
@@ -168,7 +167,7 @@ export class WindowContent {
   // ..
   addTextInput(label: string, placeholder: string, initialValue: string, id?: string): HTMLDivElement {
     const textInputEl = document.createElement("div");
-    textInputEl.classList.add("flex-row", "ui-text-input-container");
+    textInputEl.classList.add("ui-window__content__text-input__wrapper");
 
     // Create a label on the left
     const labelEl = document.createElement("label");
@@ -191,7 +190,7 @@ export class WindowContent {
   // ..
   addButton(text: string, id?: string, bgColor?: string): HTMLButtonElement {
     const buttonEl = document.createElement("button");
-    buttonEl.classList.add("ui-window__content__Button");
+    buttonEl.classList.add("ui-window__content__button");
     buttonEl.textContent = text;
     if (id != null) buttonEl.id = id;
     if (bgColor != null) buttonEl.style.backgroundColor = bgColor;
@@ -208,7 +207,7 @@ export class WindowContent {
     id?: string
   ): { button: HTMLDivElement; items: HTMLLIElement[] } {
     const dropdownRowEl = document.createElement("div");
-    dropdownRowEl.classList.add("flex-row");
+    dropdownRowEl.classList.add("ui-window__helper__flex-row");
 
     // Create a label on the left
     const labelEl = document.createElement("label");
@@ -217,12 +216,12 @@ export class WindowContent {
 
     // Create a dropdown content on the right
     const dropdownContentEl = document.createElement("div");
-    dropdownContentEl.classList.add("custom-dropdown-container");
+    dropdownContentEl.classList.add("ui-window__content__dropdown-button__wrapper");
     dropdownRowEl.appendChild(dropdownContentEl);
 
     // Create a dropdown button that resides in dropdown content
     const dropdownButtonEl = document.createElement("div");
-    dropdownButtonEl.classList.add("dropdown-button");
+    dropdownButtonEl.classList.add("ui-window__content__dropdown-button");
     const displaySpanEl = document.createElement("span");
     displaySpanEl.textContent = options[0] ? options[0] : "Template Item";
     if (id != null) displaySpanEl.id = `${id}-display`;
@@ -231,7 +230,7 @@ export class WindowContent {
 
     // Create a dropdown list that resides in dropdown content
     const dropdownListEl = document.createElement("ul");
-    dropdownListEl.classList.add("dropdown-list");
+    dropdownListEl.classList.add("ui-window__content__dropdown-list");
     if (id != null) dropdownListEl.id = `${id}-list`;
     dropdownContentEl.appendChild(dropdownListEl);
 
@@ -242,7 +241,7 @@ export class WindowContent {
       const optionText = options[i]!;
       const itemEl = document.createElement("li");
       itemEl.style.marginBottom = "0px";
-      itemEl.classList.add("dropdown-item");
+      itemEl.classList.add("ui-window__content__dropdown-item");
       itemEl.textContent = optionText;
       itemEl.dataset.index = i.toString();
       itemEl.dataset.value = optionText.toLowerCase().replace(/\s/g, "-");
@@ -318,7 +317,7 @@ export class WindowContent {
   // ..
   addToggleSwitch(label: string, initialState: boolean = false, id?: string): HTMLDivElement {
     const toggleRowEl = document.createElement("div");
-    toggleRowEl.classList.add("flex-row");
+    toggleRowEl.classList.add("ui-window__helper__flex-row");
 
     // Create a label on the left
     const labelEl = document.createElement("label");
@@ -327,12 +326,12 @@ export class WindowContent {
 
     // Create a toggle content on the right
     const toggleContentEl = document.createElement("div");
-    toggleContentEl.classList.add("toggle-container");
+    toggleContentEl.classList.add("ui-window__content__toggle-button__wrapper");
     toggleRowEl.appendChild(toggleContentEl);
 
     // Create a toggle button that resides in toggle content
     const toggleButtonEl = document.createElement("div");
-    toggleButtonEl.classList.add("toggle-switch");
+    toggleButtonEl.classList.add("ui-window__content__toggle-button");
     toggleButtonEl.dataset.state = initialState ? "on" : "off";
     if (initialState) toggleButtonEl.classList.add("is-on");
     if (id != null) toggleButtonEl.id = id + "-switch";
@@ -340,17 +339,17 @@ export class WindowContent {
 
     // Create I/O text and toggle slider
     const offIndicatorEl = document.createElement("span");
-    offIndicatorEl.classList.add("toggle-indicator", "indicator-o");
+    offIndicatorEl.classList.add("ui-window__content__toggle-button__indicator", "indicator-o");
     offIndicatorEl.textContent = "O";
     toggleButtonEl.appendChild(offIndicatorEl);
 
     const onIndicatorEl = document.createElement("span");
-    onIndicatorEl.classList.add("toggle-indicator", "indicator-i");
+    onIndicatorEl.classList.add("ui-window__content__toggle-button__indicator", "indicator-i");
     onIndicatorEl.textContent = "I";
     toggleButtonEl.appendChild(onIndicatorEl);
 
     const toggleSliderEl = document.createElement("div");
-    toggleSliderEl.classList.add("toggle-slider");
+    toggleSliderEl.classList.add("ui-window__content__toggle-button__slider");
     toggleButtonEl.appendChild(toggleSliderEl);
 
     // Add event listener to the toggle button
