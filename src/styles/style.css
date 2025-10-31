@@ -181,7 +181,7 @@ body {
 .app-menu__dropdown {
   background: var(--color-surface-raised);
   min-width: 150px;
-  z-index: 100;
+  z-index: 1000;
 
   border: 1px solid var(--color-border-light);
   box-shadow: var(--shadow-bold);

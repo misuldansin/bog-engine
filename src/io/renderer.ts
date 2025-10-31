@@ -2,102 +2,100 @@ import type { BoggedState } from "../core/bogged_state";
 import type { Particle, Color, Pixel } from "../types";
 
 export class Renderer {
-  // DOM elements
-  boggedState: BoggedState;
-  _canvas: HTMLCanvasElement;
-  _ctx: CanvasRenderingContext2D;
+  // Dependencies & DOM References
+  private readonly boggedState: BoggedState;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D;
 
   // Render variables
-  _renderWidth: number;
-  _renderHeight: number;
-  _frameBuffer: Uint8ClampedArray;
-  _queuedParticles: Particle[];
-  _queuedOverlayPixels: Pixel[];
-  _queuedUIPixels: Pixel[];
+  private frameBuffer: Uint8ClampedArray;
+  private queuedParticles: Particle[];
+  private queuedOverlayPixels: Pixel[];
+  private queuedUIPixels: Pixel[];
 
   constructor(boggedStateInstance: BoggedState, canvas: HTMLCanvasElement) {
     this.boggedState = boggedStateInstance;
+    this.canvas = canvas;
+    this.ctx = this.canvas.getContext("2d") as CanvasRenderingContext2D;
 
-    // Load DOM dependencies
-    this._canvas = canvas;
-    this._ctx = this._canvas.getContext("2d") as CanvasRenderingContext2D;
-
-    this._renderWidth = this.boggedState.gameWidth;
-    this._renderHeight = this.boggedState.gameHeight;
-    this._frameBuffer = new Uint8ClampedArray(this._renderWidth * this._renderHeight * 4);
-    this._queuedParticles = [];
-    this._queuedOverlayPixels = [];
-    this._queuedUIPixels = [];
+    this.frameBuffer = new Uint8ClampedArray(this.boggedState.gameWidth * this.boggedState.gameHeight * 4);
+    this.queuedParticles = [];
+    this.queuedOverlayPixels = [];
+    this.queuedUIPixels = [];
 
     // Initialise HTML elements
-    this._canvas.style.aspectRatio = (this.boggedState.gameWidth / this.boggedState.gameHeight).toString();
-    this._canvas.width = this._renderWidth;
-    this._canvas.height = this._renderHeight;
-    this._ctx.imageSmoothingEnabled = false;
-    this._ctx.translate(0, this._canvas.height);
-    this._ctx.scale(1, -1);
+    this.canvas.style.aspectRatio = (this.boggedState.gameWidth / this.boggedState.gameHeight).toString();
+    this.canvas.width = this.boggedState.gameWidth;
+    this.canvas.height = this.boggedState.gameHeight;
+    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.translate(0, this.canvas.height);
+    this.ctx.scale(1, -1);
   }
 
   // ..
-  queueUIPixels(pixelsToQueue: Pixel[]) {
+  public queueUIPixels(pixelsToQueue: Pixel[]) {
     // Clear previous pixels
-    this._queuedUIPixels = [];
+    this.queuedUIPixels = [];
 
-    this._queuedUIPixels = pixelsToQueue;
+    this.queuedUIPixels = pixelsToQueue;
   }
 
   // ..
-  queueParticles(particlesToQueue: Set<Particle> | Particle[], debugOverlayColor?: Color) {
+  public queueParticles(particlesToQueue: Set<Particle> | Particle[], debugOverlayColor?: Color) {
     // Queue particles to be processed later by the renderer loop
-    this._queuedParticles.push(...particlesToQueue);
+    this.queuedParticles.push(...particlesToQueue);
 
     // Handle debug overlay
     if (debugOverlayColor) {
-      const width: number = this._renderWidth;
-      const height: number = this._renderHeight;
+      const width: number = this.boggedState.gameWidth;
+      const height: number = this.boggedState.gameHeight;
       for (const particle of particlesToQueue) {
         const flippedY: number = height - 1 - particle.position.y;
         const index: number = flippedY * width + particle.position.x;
-        this._queuedOverlayPixels.push({ index: index, value: debugOverlayColor });
+        this.queuedOverlayPixels.push({ index: index, value: debugOverlayColor });
       }
     }
   }
 
   // ..
-  queueOverlayPixels(pixelsToQueue: Pixel[]) {
-    this._queuedOverlayPixels.push(...pixelsToQueue);
+  public queueOverlayPixels(pixelsToQueue: Pixel[]) {
+    this.queuedOverlayPixels.push(...pixelsToQueue);
   }
 
   // ..
-  renderThisFrame() {
+  public renderThisFrame() {
     // Draw brush outline on the canvas
     if (this.boggedState.isBrushOutlineVisible) {
       const brushOutline = this.getBrushOutline(Math.floor(this.boggedState.mouseX), Math.floor(this.boggedState.mouseY));
-      this._queuedUIPixels = brushOutline;
+      this.queuedUIPixels = brushOutline;
     }
 
-    // Step 1. proccess queued particles this frame
-    this.#processQueuedParticles();
+    // Proccess queued particles this frame
+    this.processQueuedParticles();
 
-    // Step 2. add overlay data
-    let postProcessFrameBuffer: Uint8ClampedArray = new Uint8ClampedArray(this._frameBuffer);
-    this.#addBuffer(postProcessFrameBuffer, this._queuedOverlayPixels);
-    this.#addBuffer(postProcessFrameBuffer, this._queuedUIPixels);
+    // Add overlay data
+    let postProcessFrameBuffer: Uint8ClampedArray = new Uint8ClampedArray(this.frameBuffer);
+    this.addBuffer(postProcessFrameBuffer, this.queuedOverlayPixels);
+    this.addBuffer(postProcessFrameBuffer, this.queuedUIPixels);
 
-    // Step 3. render the final result
-    const imageData: ImageData = new ImageData(postProcessFrameBuffer as ImageDataArray, this._renderWidth, this._renderHeight);
-    this._ctx.putImageData(imageData, 0, 0);
+    // Push the final buffer
+    const imageData: ImageData = new ImageData(
+      postProcessFrameBuffer as ImageDataArray,
+      this.boggedState.gameWidth,
+      this.boggedState.gameHeight
+    );
+    this.ctx.putImageData(imageData, 0, 0);
 
-    // Step 4. clear any rendering data related to this frame
-    this._queuedParticles.length = 0;
-    this._queuedOverlayPixels = [];
-    this._queuedUIPixels = [];
+    // Clear any rendering data related to this frame
+    this.queuedParticles.length = 0;
+    this.queuedOverlayPixels = [];
+    this.queuedUIPixels = [];
   }
 
-  #processQueuedParticles() {
-    const particlesToProcess: Particle[] = this._queuedParticles;
-    const width: number = this._renderWidth;
-    const height: number = this._renderHeight;
+  private processQueuedParticles() {
+    const particlesToProcess: Particle[] = this.queuedParticles;
+    const width: number = this.boggedState.gameWidth;
+    const height: number = this.boggedState.gameHeight;
 
     for (const particle of particlesToProcess) {
       const particleX: number = particle.position.x;
@@ -106,21 +104,21 @@ export class Renderer {
       const index: number = flippedY * width + particleX;
 
       // Push particle's color to the fram buffer
-      let pixelColor: Color = this.#processParticleColor(particle);
-      this._frameBuffer[index * 4 + 0] = pixelColor[0]; // red
-      this._frameBuffer[index * 4 + 1] = pixelColor[1]; // green
-      this._frameBuffer[index * 4 + 2] = pixelColor[2]; // blue
-      this._frameBuffer[index * 4 + 3] = pixelColor[3]; // alpha
+      let pixelColor: Color = this.processParticleColor(particle);
+      this.frameBuffer[index * 4 + 0] = pixelColor[0]; // red
+      this.frameBuffer[index * 4 + 1] = pixelColor[1]; // green
+      this.frameBuffer[index * 4 + 2] = pixelColor[2]; // blue
+      this.frameBuffer[index * 4 + 3] = pixelColor[3]; // alpha
     }
   }
 
-  #processParticleColor(particle: Particle): Color {
+  private processParticleColor(particle: Particle): Color {
     // ! Todo: process color here
 
     return particle.color;
   }
 
-  #addBuffer(baseBuffer: Uint8ClampedArray, overrideBuffer: Pixel[]) {
+  private addBuffer(baseBuffer: Uint8ClampedArray, overrideBuffer: Pixel[]) {
     for (const { index, value } of overrideBuffer) {
       // Get RGBA channels of the base layer color
       const dr: number = baseBuffer[index * 4 + 0]!;

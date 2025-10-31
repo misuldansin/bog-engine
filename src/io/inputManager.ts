@@ -1,5 +1,3 @@
-import type { Renderer } from "../io/renderer";
-import type { Grid } from "../structs/grid";
 import type { BoggedState } from "../core/bogged_state";
 import { WindowManager } from "./window_manager";
 import type { ParticleMap } from "../types";
@@ -57,13 +55,6 @@ export class InputManager {
 
   // Bind app menu event lisnteners
   private bindAppMenuEvents() {
-    this._processAppMenuItem("bog-menu-item", ["About bog engine", "Settings", "Quit"]);
-    this._processAppMenuItem("file-item", ["Save", "Load", "New scene", "Exit"]);
-    this._processAppMenuItem("edit-item", ["Undo", "Redo", "Preferences"]);
-    this._processAppMenuItem("view-item", ["Zoom In", "Zoom Out", "Reset View"]);
-    this._processAppMenuItem("help-item", ["Documentation", "Report Issue"]);
-  }
-  _processAppMenuItem(id: string, items: string[]) {
     const createAppMenuDropBar = (itemEl: HTMLDivElement, itemList: string[]) => {
       const listEl = document.createElement("div");
       listEl.classList.add("app-menu__dropdown");
@@ -74,21 +65,17 @@ export class InputManager {
         el.textContent = text;
         listEl.appendChild(el);
       });
-
       itemEl.appendChild(listEl);
       return listEl;
     };
-
     const createAppMenuListeners = (itemEl: HTMLDivElement, listEl: HTMLDivElement) => {
       itemEl.addEventListener("click", (event) => {
         event.stopPropagation();
-
         // Close all other dropdowns
         const currentlyOpen = document.querySelector(".app-menu__dropdown[style*='block']");
         if (currentlyOpen && currentlyOpen !== listEl) {
           (currentlyOpen as HTMLDivElement).style.display = "none";
         }
-
         // Toggle this dropdown
         if (listEl.style.display === "block") {
           listEl.style.display = "none";
@@ -109,12 +96,19 @@ export class InputManager {
         }
       });
     };
+    const processAppMenuItem = (id: string, items: string[]) => {
+      const itemEl = document.getElementById(id);
+      if (itemEl instanceof HTMLDivElement) {
+        const dropDownEl = createAppMenuDropBar(itemEl, items);
+        createAppMenuListeners(itemEl, dropDownEl);
+      }
+    };
 
-    const itemEl = document.getElementById(id);
-    if (itemEl instanceof HTMLDivElement) {
-      const dropDownEl = createAppMenuDropBar(itemEl, items);
-      createAppMenuListeners(itemEl, dropDownEl);
-    }
+    processAppMenuItem("bog-menu-item", ["About bog engine", "Settings", "Quit"]);
+    processAppMenuItem("file-item", ["Save", "Load", "New scene", "Exit"]);
+    processAppMenuItem("edit-item", ["Undo", "Redo", "Preferences"]);
+    processAppMenuItem("view-item", ["Zoom In", "Zoom Out", "Reset View"]);
+    processAppMenuItem("help-item", ["Documentation", "Report Issue"]);
   }
 
   // Bind canvas related event listeners

@@ -1,16 +1,4 @@
-import type {
-  ParticleMap,
-  Particle,
-  Index,
-  Vector2,
-  Offset,
-  Color,
-  SandParticle,
-  LiquidParticle,
-  equalisationGroup,
-  GasParticle,
-  GameSettings,
-} from "../types";
+import type { ParticleMap, Particle, Index, Offset, Color, SandParticle, LiquidParticle, equalisationGroup, GasParticle } from "../types";
 
 import { Grid, NEIGHBOR, NEIGHBORHOOD } from "../structs/grid";
 import type { Renderer } from "../io/renderer";
@@ -19,37 +7,32 @@ import type { Debug } from "../io/debug";
 import { Utilities } from "../structs/utils";
 import type { BoggedState } from "./bogged_state";
 
-// ! temp: ..
-const neighborKeys = Object.keys(NEIGHBOR) as Array<keyof typeof NEIGHBOR>;
-
 export class Engine {
-  private readonly boggedState: BoggedState;
-
   // Dependencies
-  #renderer: Renderer;
-  #inputManager: InputManager;
-  #debug: Debug;
+  private readonly boggedState: BoggedState;
+  private readonly renderer: Renderer;
+  private readonly inputManager: InputManager;
+  private readonly debug: Debug;
 
   // Grid variables
-  #gameWidth: number;
-  #gameHeight: number;
-  #currentGrid: Grid;
-  #particlesProcessed: Set<Index>;
+  private currentGrid: Grid;
+  private particlesProcessed: Set<Index>;
 
   // Loop variables
-  #isRunning: boolean;
-  #animationFrameId: number | null;
-  #renderInterval: number;
-  #physicsInterval: number;
+  private isRunning: boolean = false;
+  private animationFrameId: number | null = null;
+  private renderInterval: number;
+  private physicsInterval: number;
 
   // Time tracking variables
-  #lastFrameTime: number | null;
-  #accumulator: number;
-  tickCount: number;
+  private lastFrameTime: number | null = null;
+  private accumulator: number = 0;
+  public tickCount: number = 0;
 
   // ! temp: ..
-  #clearDirtyDelta = 0;
-  #clearDirtyFreq = 60;
+  private clearDirtyDelta = 0;
+  private clearDirtyFreq = 60;
+  private neighborKeys = Object.keys(NEIGHBOR) as Array<keyof typeof NEIGHBOR>;
 
   constructor(
     boggedStateInstance: BoggedState,
@@ -59,106 +42,97 @@ export class Engine {
     particleData: ParticleMap
   ) {
     this.boggedState = boggedStateInstance;
+    this.renderer = renderInstance;
+    this.inputManager = inputManagerInstance;
+    this.debug = debugInstance;
 
-    this.#renderer = renderInstance;
-    this.#inputManager = inputManagerInstance;
-    this.#debug = debugInstance;
+    this.currentGrid = new Grid(this.boggedState.gameWidth, this.boggedState.gameHeight, particleData);
+    this.particlesProcessed = new Set();
 
-    this.#gameWidth = this.boggedState.gameWidth;
-    this.#gameHeight = this.boggedState.gameHeight;
-    this.#currentGrid = new Grid(this.#gameWidth, this.#gameHeight, particleData);
-    this.#particlesProcessed = new Set();
-
-    this.#isRunning = false;
-    this.#animationFrameId = null;
-    this.#renderInterval = this.boggedState.renderInterval;
-    this.#physicsInterval = this.boggedState.physicsInterval;
-
-    this.#lastFrameTime = null;
-    this.#accumulator = 0;
-    this.tickCount = 0;
+    this.renderInterval = this.boggedState.renderInterval;
+    this.physicsInterval = this.boggedState.physicsInterval;
   }
 
   // ..
   start() {
-    if (!this.#isRunning) {
-      this.#isRunning = true;
+    if (!this.isRunning) {
+      this.isRunning = true;
       this.gameLoop(0);
     }
   }
 
   // ..
   stop() {
-    this.#isRunning = false;
-    if (this.#animationFrameId) {
-      cancelAnimationFrame(this.#animationFrameId);
-      this.#animationFrameId = null;
+    this.isRunning = false;
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
   }
 
   // ..
   private gameLoop = (timestamp: number) => {
-    if (!this.#isRunning) return;
+    if (!this.isRunning) return;
 
     // Skip the first frame
-    if (!this.#lastFrameTime) {
-      this.#lastFrameTime = timestamp;
-      this.#animationFrameId = requestAnimationFrame(this.gameLoop);
+    if (!this.lastFrameTime) {
+      this.lastFrameTime = timestamp;
+      this.animationFrameId = requestAnimationFrame(this.gameLoop);
       return;
     }
 
-    const delta = timestamp - this.#lastFrameTime;
-    this.#lastFrameTime = timestamp;
+    const delta = timestamp - this.lastFrameTime;
+    this.lastFrameTime = timestamp;
 
     // ------ Handle Input ------
     this.handleInput();
 
     // ------ Update Physics ------
-    this.#accumulator += delta;
+    this.accumulator += delta;
     let stepsTaken = 0;
-    while (this.#accumulator >= this.#physicsInterval) {
+    while (this.accumulator >= this.physicsInterval) {
       const particlesToUpdate: Particle[] = [];
-      for (const index of this.#currentGrid.dirtyParticles) {
-        particlesToUpdate.push(this.#currentGrid.data[index]!);
+      for (const index of this.currentGrid.dirtyParticles) {
+        particlesToUpdate.push(this.currentGrid.data[index]!);
       }
 
-      this.#clearDirtyDelta++;
+      this.clearDirtyDelta++;
 
-      if (this.#clearDirtyDelta > this.#clearDirtyFreq) {
-        this.#currentGrid.dirtyParticles.clear();
-        this.#clearDirtyDelta = 0;
+      if (this.clearDirtyDelta > this.clearDirtyFreq) {
+        this.currentGrid.dirtyParticles.clear();
+        this.clearDirtyDelta = 0;
       }
 
       const overlayColor: Color = new Uint8ClampedArray([210, 55, 55, 180]) as Color;
-      this.#renderer.queueParticles(particlesToUpdate, this.#debug.isOverlayEnabled ? overlayColor : undefined);
+      this.renderer.queueParticles(particlesToUpdate, this.debug.isOverlayEnabled ? overlayColor : undefined);
 
       // Update physics this frame
-      this.#stepPhysics(particlesToUpdate);
+      this.stepPhysics(particlesToUpdate);
 
       this.tickCount++;
-      this.#accumulator -= this.#physicsInterval;
+      this.accumulator -= this.physicsInterval;
 
       stepsTaken++;
 
       if (stepsTaken > 60) {
-        this.#accumulator = 0;
+        this.accumulator = 0;
       }
     }
 
     // ------ Render This Frame ------
 
-    this.#renderer.renderThisFrame();
+    this.renderer.renderThisFrame();
 
     // ------ Update Debug Stats ------
-    this.#debug.updateDisplay(timestamp, this);
+    this.debug.updateDisplay(timestamp, this);
 
-    this.#animationFrameId = requestAnimationFrame(this.gameLoop);
+    this.animationFrameId = requestAnimationFrame(this.gameLoop);
   };
 
   private handleInput() {
     // Paint Particles
     if (this.boggedState.isLeftMouseButtonDown) {
-      this.#currentGrid.fillCircleAt(
+      this.currentGrid.fillCircleAt(
         Math.floor(this.boggedState.mouseX),
         Math.floor(this.boggedState.mouseY),
         this.boggedState.currentBrushSize,
@@ -168,7 +142,7 @@ export class Engine {
 
     // Erase Particles
     if (this.boggedState.isRightMouseButtonDown) {
-      this.#currentGrid.fillCircleAt(
+      this.currentGrid.fillCircleAt(
         Math.floor(this.boggedState.mouseX),
         Math.floor(this.boggedState.mouseY),
         this.boggedState.currentBrushSize,
@@ -178,9 +152,9 @@ export class Engine {
   }
 
   // ..
-  #stepPhysics(particlesToUpdate: Particle[]) {
+  private stepPhysics(particlesToUpdate: Particle[]) {
     // Clear particles processed array and current grid's dirty particles to initialise for the next part
-    this.#particlesProcessed.clear();
+    this.particlesProcessed.clear();
 
     // Shuffle the entire list to randomize the horizontal order
     particlesToUpdate = Utilities.shuffleArray(particlesToUpdate);
@@ -193,7 +167,7 @@ export class Engine {
       if (!particle) continue; // If particle is null, don't bother
 
       // If the particle was already processed this frame, don't bother
-      if (this.#particlesProcessed.has(particle.index)) continue;
+      if (this.particlesProcessed.has(particle.index)) continue;
 
       switch (particle.category) {
         case 1:
@@ -201,11 +175,11 @@ export class Engine {
           break;
         case 2:
           // Handle liquids
-          this.#handleLiquids(particle);
+          this.handleLiquids(particle);
           break;
         case 3:
           // Handle Gas
-          this.#handleGases(particle);
+          this.handleGases(particle);
           break;
         case 4:
           // Handle Sands
@@ -220,12 +194,12 @@ export class Engine {
     }
 
     // ! temp: ..
-    let liquidGroup = this.groupParticles(this.#currentGrid, 2);
-    this.#simulateEqualisation(liquidGroup);
+    let liquidGroup = this.groupParticles(this.currentGrid, 2);
+    this.simulateEqualisation(liquidGroup);
   }
 
   // ..
-  #handleLiquids(particle: LiquidParticle) {
+  private handleLiquids(particle: LiquidParticle) {
     let directions: Offset[][] = [
       [{ dx: 0, dy: -1 }],
       [
@@ -238,24 +212,24 @@ export class Engine {
       ],
     ];
 
-    const targetParticle = this.#currentGrid.tryMoveParticle(particle, directions, false, true, true);
+    const targetParticle = this.currentGrid.tryMoveParticle(particle, directions, false, true, true);
     if (targetParticle) {
-      this.#particlesProcessed.add(particle.index);
-      this.#particlesProcessed.add(targetParticle.index);
+      this.particlesProcessed.add(particle.index);
+      this.particlesProcessed.add(targetParticle.index);
     }
   }
 
   // ..
-  #handleGases(particle: GasParticle) {
-    const randomKey = neighborKeys[Math.floor(Math.random() * neighborKeys.length)]!;
+  private handleGases(particle: GasParticle) {
+    const randomKey = this.neighborKeys[Math.floor(Math.random() * this.neighborKeys.length)]!;
     const randomDir: Offset = NEIGHBOR[randomKey];
 
     let directions = [[randomDir]];
 
-    const targetParticle = this.#currentGrid.tryMoveParticle(particle, directions, false, true, true);
+    const targetParticle = this.currentGrid.tryMoveParticle(particle, directions, false, true, true);
     if (targetParticle) {
-      this.#particlesProcessed.add(particle.index);
-      this.#particlesProcessed.add(targetParticle.index);
+      this.particlesProcessed.add(particle.index);
+      this.particlesProcessed.add(targetParticle.index);
     }
   }
 
@@ -263,17 +237,17 @@ export class Engine {
   #handleSands(particle: SandParticle) {
     let directions = particle.reposeDirections;
 
-    const targetParticle = this.#currentGrid.tryMoveParticle(particle, directions, true, true, true);
+    const targetParticle = this.currentGrid.tryMoveParticle(particle, directions, true, true, true);
     if (targetParticle) {
-      this.#particlesProcessed.add(particle.index);
-      this.#particlesProcessed.add(targetParticle.index);
+      this.particlesProcessed.add(particle.index);
+      this.particlesProcessed.add(targetParticle.index);
     }
   }
 
   // --------- Physics Helper Functions ---------
 
   // ..
-  #simulateEqualisation(liquidGroup: equalisationGroup[]) {
+  private simulateEqualisation(liquidGroup: equalisationGroup[]) {
     for (const group of liquidGroup) {
       // Sort the target spaces to get the lowest ones first (descending y)
       const liquidParticles = group.liquidParticle.sort((a, b) => b.position.y - a.position.y);
@@ -297,9 +271,9 @@ export class Engine {
 
         // Only swap liquid particle to a lower empty particle
         if (liquidPar.position.y > emptyPar.position.y) {
-          this.#currentGrid.swapParticles(liquidPar, emptyPar, true, true);
-          this.#particlesProcessed.add(liquidPar.index);
-          this.#particlesProcessed.add(emptyPar.index);
+          this.currentGrid.swapParticles(liquidPar, emptyPar, true, true);
+          this.particlesProcessed.add(liquidPar.index);
+          this.particlesProcessed.add(emptyPar.index);
 
           swapped++;
           if (swapped >= limitedSwap) {
@@ -311,7 +285,7 @@ export class Engine {
   }
 
   // Returns grouped particles of similar category in single scan using Katorithm algorithm
-  groupParticles(grid: Grid, category: number): equalisationGroup[] {
+  private groupParticles(grid: Grid, category: number): equalisationGroup[] {
     const gridWidth: number = grid.width;
     const gridHeight: number = grid.height;
     const groups: Index[][] = [];

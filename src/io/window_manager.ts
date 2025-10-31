@@ -14,7 +14,7 @@ export class WindowManager {
 
     // Add global event listener for closing any opened dropdown menus
     document.addEventListener("click", (event: MouseEvent) => {
-      document.querySelectorAll(".dropdown-list.is-open").forEach((list) => {
+      document.querySelectorAll(".ui-window__content__dropdown-list.is-open").forEach((list) => {
         const originId = (list as HTMLElement).dataset.originId;
         const originContainer = originId ? document.getElementById(originId) : null;
         if (!list.contains(event.target as Node) && !originContainer?.contains(event.target as Node)) {
