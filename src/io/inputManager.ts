@@ -62,6 +62,12 @@ export class InputManager {
       itemList.forEach((text) => {
         const el = document.createElement("div");
         el.classList.add("app-menu__dropdown-item");
+
+        // ! temp: ..
+        if (text !== "About" && text !== "Report Issue") {
+          el.classList.add("is-disabled");
+        }
+
         el.textContent = text;
         listEl.appendChild(el);
       });
@@ -101,14 +107,33 @@ export class InputManager {
       if (itemEl instanceof HTMLDivElement) {
         const dropDownEl = createAppMenuDropBar(itemEl, items);
         createAppMenuListeners(itemEl, dropDownEl);
+
+        // ! temp: ..
+        if (id === "help-item") {
+          const dropdownItems = dropDownEl.querySelectorAll(".app-menu__dropdown-item");
+          dropdownItems.forEach((itemEl: Element) => {
+            const text = itemEl.textContent;
+            itemEl.addEventListener("click", (event) => {
+              event.stopPropagation();
+              dropDownEl.style.display = "none";
+              this.isAppMenuOpen = false;
+
+              if (text === "About") {
+                window.open("https://github.com/misuldansin/bog-engine/", "_blank");
+              } else if (text === "Report Issue") {
+                window.open("https://github.com/misuldansin/bog-engine/issues/new", "_blank");
+              }
+            });
+          });
+        }
       }
     };
 
-    processAppMenuItem("bog-menu-item", ["About bog engine", "Settings", "Quit"]);
-    processAppMenuItem("file-item", ["Save", "Load", "New scene", "Exit"]);
-    processAppMenuItem("edit-item", ["Undo", "Redo", "Preferences"]);
-    processAppMenuItem("view-item", ["Zoom In", "Zoom Out", "Reset View"]);
-    processAppMenuItem("help-item", ["Documentation", "Report Issue"]);
+    processAppMenuItem("bog-menu-item", ["Settings", "Quit"]);
+    processAppMenuItem("file-item", ["Save", "Load", "Exit"]);
+    processAppMenuItem("edit-item", ["Preferences", "Undo", "Redo"]);
+    processAppMenuItem("view-item", ["Reset View"]);
+    processAppMenuItem("help-item", ["About", "Report Issue"]);
   }
 
   // Bind canvas related event listeners

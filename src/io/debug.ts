@@ -50,12 +50,12 @@ export class Debug {
 
     const fpsElement = this.elements.get("fps");
     if (fpsElement) {
-      fpsElement.textContent = `FPS: ${this.fps.toFixed(2)}`;
+      fpsElement.textContent = `FPS: ${this.fps.toFixed(0)}`;
     }
 
     const tpsElement = this.elements.get("tps");
     if (tpsElement) {
-      tpsElement.textContent = `TPS: ${this.tps.toFixed(2)}`;
+      tpsElement.textContent = `TPS: ${this.tps.toFixed(0)}`;
     }
   }
 

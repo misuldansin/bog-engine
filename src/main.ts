@@ -35,7 +35,8 @@ async function initialize(): Promise<void> {
     const inputManager = new InputManager(boggedState, viewport, canvas, particleData);
 
     // Initialise Debugger
-    const debug = new Debug(boggedState, viewport, false);
+    const debug = new Debug(boggedState, viewport);
+    debug.enableDebug(false);
 
     // Initialise Engine
     const engine = new Engine(boggedState, renderer, inputManager, debug, particleData);
@@ -44,8 +45,8 @@ async function initialize(): Promise<void> {
     engine.start();
 
     // ! debug: .. <
-    console.log(particleData);
-    addDemoWindow(viewport);
+    // console.log(particleData);
+    // addDemoWindow(viewport);
     // ! debug: .. >
 
     // ..
