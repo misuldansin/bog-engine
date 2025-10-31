@@ -1,73 +1,76 @@
 import type { GameSettings } from "./types";
-
-import { Settings } from "./settings";
-import { loadParticleData } from "./loader";
 import { Renderer } from "./io/renderer";
 import { Engine } from "./core/engine";
 import { InputManager } from "./io/inputManager";
 import { Debug } from "./io/debug";
-import { Window } from "./structs/window";
-import { WindowContent } from "./structs/window_content";
+import { Window } from "./io/window";
+import { WindowContent } from "./io/window_content";
+import { loadParticleData, loadSettings } from "./loader";
+import { BoggedState } from "./core/bogged_state";
 
-async function initialize() {
+// App initilization function
+async function initialize(): Promise<void> {
   try {
-    // Retrieve game states
-    let settings: GameSettings = Settings;
-    const MAX_DIMENTION = 400;
-    const MIN_DIMENTION = 40;
-    const MAX_INTERVAL = 1000;
-    const MIN_INTERVAL = 4;
+    // Get DOM elements
+    const viewport = getElement<HTMLDivElement>("viewport", HTMLDivElement);
+    const canvas = getElement("render-surface", HTMLCanvasElement);
 
-    // Correct ahem them settings
-    settings.GAME_WIDTH = Math.max(MIN_DIMENTION, Math.min(MAX_DIMENTION, settings.GAME_WIDTH));
-    settings.GAME_HEIGHT = Math.max(MIN_DIMENTION, Math.min(MAX_DIMENTION, settings.GAME_HEIGHT));
-    settings.PHYSICS_UPDATE_INTERVAL = Math.max(MIN_INTERVAL, Math.min(MAX_INTERVAL, settings.PHYSICS_UPDATE_INTERVAL));
-
-    // Freeze so settings is read-only properties
-    Object.freeze(settings);
-
-    // Get DOM references
-    const viewport: HTMLElement | null = document.getElementById("viewport");
-    if (!(viewport instanceof HTMLDivElement)) {
-      throw new Error("HTML element 'main-panel' does not exist.");
+    // Load data
+    const particleData = await loadParticleData("./src/data/particles.data");
+    if (!particleData) {
+      throw new Error(`Failed to load particle data from "./src/data/particles.data"`);
     }
-    const canvas: HTMLElement | null = document.getElementById("render-surface");
-    if (!(canvas instanceof HTMLCanvasElement)) {
-      throw new Error("HTML element 'main-canvas' does not exist.");
+    const settings: GameSettings = await loadSettings("./src/data/settings.data");
+    if (!settings) {
+      throw new Error(`Failed to load settings from "./src/data/settings.data"`);
     }
-    canvas.style.aspectRatio = (settings.GAME_WIDTH / settings.GAME_HEIGHT).toString();
 
-    // Init Renderer
-    const renderer = new Renderer(canvas, settings);
+    // Initialise global state
+    const boggedState = new BoggedState(settings);
 
-    // Retrieve particle data
-    const loadedParticleData = await loadParticleData("./src/data/particles.data");
+    // Initialise Renderer
+    const renderer = new Renderer(boggedState, canvas);
 
-    // Init Input Manager
-    const inputManager: InputManager = new InputManager(loadedParticleData, viewport, canvas, settings, renderer);
+    // Initialise Input Manager
+    const inputManager = new InputManager(boggedState, viewport, canvas, particleData);
 
-    // Init Debugger
-    const debug: Debug = new Debug(viewport);
-    debug.enableDebug(false);
+    // Initialise Debugger
+    const debug = new Debug(boggedState, viewport, false);
 
-    // Init Engine
-    const engine = new Engine(loadedParticleData, settings, renderer, inputManager, debug);
+    // Initialise Engine
+    const engine = new Engine(boggedState, renderer, inputManager, debug, particleData);
 
     // Start the engine
     engine.start();
 
     // ! debug: .. <
-    console.log(loadedParticleData);
+    console.log(particleData);
     addDemoWindow(viewport);
     // ! debug: .. >
 
     // ..
   } catch (error) {
-    console.error("ERROR: Failed to initialize engine due to data loading failure.", error);
+    console.error("ERROR: Failed to initialize app:", error);
   }
 }
 
-// ! temp: ..
+// Helper function for getting a DOM element using id, handles error if element with id does not exists
+function getElement<T extends HTMLElement>(elementId: string, expectedType: new () => T): T {
+  const element = document.getElementById(elementId);
+  if (!(element instanceof expectedType)) {
+    throw new Error(`Missing or invalid <${expectedType.name.toLowerCase()} id='${elementId}'> element in DOM.`);
+  }
+  return element;
+}
+
+// Initialise the app
+initialize();
+
+//
+//
+//
+//
+// ------ DEBUG ZONE ------
 function addDemoWindow(hostEl: HTMLDivElement) {
   // Create a window
   const position = { x: 80, y: 80 };
@@ -135,6 +138,3 @@ function addDemoWindow(hostEl: HTMLDivElement) {
   demoWindow.addContentBarSeparator(true);
   demoWindow.addNewContent(settingsContent.contentElement, "Settings", "./assets/icons/settings.svg");
 }
-
-// Initialise App
-initialize();

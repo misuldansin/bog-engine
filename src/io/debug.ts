@@ -1,6 +1,9 @@
+import type { BoggedState } from "../core/bogged_state";
 import type { Engine } from "../core/engine";
 
 export class Debug {
+  private readonly boggedState: BoggedState;
+
   // Debug states
   #isEnabled: boolean;
   #isOverlayEnabled: boolean;
@@ -12,9 +15,11 @@ export class Debug {
   #tps: number;
   #lastStatsUpdateTime: number;
 
-  constructor(containerToAttach: HTMLDivElement) {
-    this.#isEnabled = false;
-    this.#isOverlayEnabled = false;
+  constructor(boggedStateInstance: BoggedState, containerToAttach: HTMLDivElement, isEnabled: boolean = false) {
+    this.boggedState = boggedStateInstance;
+
+    this.#isEnabled = isEnabled;
+    this.#isOverlayEnabled = isEnabled;
     this.#elements = new Map();
 
     this.#frameCount = 0;

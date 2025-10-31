@@ -275,7 +275,7 @@ export class Window {
     newButtonEl.appendChild(contentIconEl);
 
     // Bind listener for this button
-    newButtonEl.addEventListener("click", () => this.displayContent(newIndex));
+    newButtonEl.addEventListener("click", () => this.displayContentAtIndex(newIndex));
 
     // Show content bar if more than 1 content exists for this window
     if (this.contents.length > 0) {
@@ -288,7 +288,36 @@ export class Window {
   }
 
   // ..
-  displayContent(index: Index) {
+  displayContent(contentToDisplay: HTMLDivElement) {
+    const contents = this.contents;
+    for (let i = 0; i < contents.length; i++) {
+      const content = contents[i];
+      if (content !== contentToDisplay) {
+        continue;
+      }
+
+      // Hide all contents
+      this.contents.forEach((item, i) => {
+        item.style.display = "none";
+      });
+
+      // Show this content
+      content.style.display = "";
+
+      // Assign new selected content index
+      this.selectedContent = i;
+
+      // Update content bar buttons
+      this.contentBarButtons.forEach((btn, index) => {
+        if (index === i) btn.classList.add("active");
+        else btn.classList.remove("active");
+      });
+
+      return;
+    }
+  }
+
+  displayContentAtIndex(index: Index) {
     // Get the content to display
     const contentToDisplay = this.contents[index];
     if (!contentToDisplay) {

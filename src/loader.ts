@@ -8,6 +8,7 @@ import type {
   GasParticleData,
   SandParticleData,
   ElectronicParticleData,
+  GameSettings,
 } from "./types";
 
 // This interface has all particle data possible keys the loader expects
@@ -224,4 +225,100 @@ export async function loadParticleData(filePath: string): Promise<ParticleMap> {
   } as TechincalParticleData;
 
   return finalMapOut;
+}
+
+// ..
+export async function loadSettings(path: string): Promise<GameSettings> {
+  // Retrieve file text
+  const fileText: string = await getFileText(path);
+
+  // Go line by line
+  const settings: Partial<GameSettings> = {};
+  const lines = fileText.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Ignore empty line and line starting with '#'
+    if (trimmed.length === 0 || trimmed.startsWith("#")) continue;
+
+    // Retrieve category+key and value pair
+    const dotIndex = trimmed.indexOf(".");
+    const colonIndex = trimmed.indexOf(":");
+    if (colonIndex === -1 || dotIndex === -1 || dotIndex >= colonIndex) continue;
+
+    const category = trimmed.substring(0, dotIndex).trim();
+    const key = trimmed.substring(dotIndex + 1, colonIndex).trim();
+    const value = trimmed.substring(colonIndex + 1).trim();
+    if (!category || !key || value === undefined || value.length === 0) continue;
+
+    // Match and asign keys
+    let parsedNumber: number;
+    if (category === "engine") {
+      switch (key) {
+        case "width":
+          parsedNumber = parseInt(value);
+          if (!isNaN(parsedNumber)) settings.gameWidth = parsedNumber;
+          break;
+        case "height":
+          parsedNumber = parseInt(value);
+          if (!isNaN(parsedNumber)) settings.gameHeight = parsedNumber;
+          break;
+        case "render_interval":
+          parsedNumber = parseFloat(value);
+          if (!isNaN(parsedNumber)) settings.renderInterval = parsedNumber;
+          break;
+        case "physics_interval":
+          parsedNumber = parseFloat(value);
+          if (!isNaN(parsedNumber)) settings.physicsInterval = parsedNumber;
+          break;
+        default:
+          break;
+      }
+    } else if (category === "input") {
+      switch (key) {
+        case "brush_size":
+          parsedNumber = parseInt(value);
+          if (!isNaN(parsedNumber)) settings.brushSize = parsedNumber;
+          break;
+        case "brush_max_size":
+          parsedNumber = parseInt(value);
+          if (!isNaN(parsedNumber)) settings.brushMaxSize = parsedNumber;
+          break;
+        case "brush_sensitivity":
+          parsedNumber = parseFloat(value);
+          if (!isNaN(parsedNumber)) settings.brushSensitivity = parsedNumber;
+          break;
+        default:
+          break;
+      }
+    } else if (category === "debug") {
+      switch (key) {
+        case "start_enabled":
+          if (value.toLowerCase() === "true") settings.debugEnabled = true;
+          else if (value.toLowerCase() === "false") settings.debugEnabled = false;
+          break;
+        case "overlay_start_enabled":
+          if (value.toLowerCase() === "true") settings.debugOverlayEnabled = true;
+          else if (value.toLowerCase() === "false") settings.debugOverlayEnabled = false;
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  // Apply defaults for missing values
+  return {
+    gameWidth: settings.gameWidth ?? 342,
+    gameHeight: settings.gameHeight ?? 192,
+    renderInterval: settings.renderInterval ?? 16.667,
+    physicsInterval: settings.physicsInterval ?? 25,
+
+    brushSize: settings.brushSize ?? 4,
+    brushMaxSize: settings.brushMaxSize ?? 42,
+    brushSensitivity: settings.brushSensitivity ?? 0.02,
+
+    debugEnabled: settings.debugEnabled ?? false,
+    debugOverlayEnabled: settings.debugOverlayEnabled ?? false,
+  };
 }

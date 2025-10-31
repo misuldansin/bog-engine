@@ -1,462 +1,267 @@
-import type { Color, ContentBarOrientation, GameSettings, ParticleMap, Pixel, Size, Vector2 } from "../types";
 import type { Renderer } from "../io/renderer";
 import type { Grid } from "../structs/grid";
-
-import { color } from "../structs/color_utils";
-import { Window } from "../structs/window";
-import { WindowContent } from "../structs/window_content";
+import type { BoggedState } from "../core/bogged_state";
+import { WindowManager } from "./window_manager";
+import type { ParticleMap } from "../types";
 
 export class InputManager {
-  // DOMs and dependencies
-  private _mainContainer: HTMLDivElement;
-  private _canvas: HTMLCanvasElement;
-  private _renderer: Renderer;
+  // Dependencies & DOM References
+  private readonly boggedState: BoggedState;
+  private readonly windowManager: WindowManager;
+  private readonly viewport: HTMLDivElement;
+  private readonly canvas: HTMLCanvasElement;
 
-  // Input variables
-  private _width: number;
-  private _height: number;
-  private _brushSizeSensitivity: number;
-  private _maxBrushSize: number;
+  // Input States
+  private activePointerId: number | null = null;
+  private isAppMenuOpen: boolean = false;
 
-  private _selectedParticle: number;
-  private _selectedCategory: number;
-  private _currentBrushSize: number;
-  private _currentPressure: number;
-  private _currentConcentration: number;
+  constructor(boggedStateInstance: BoggedState, vieportEl: HTMLDivElement, canvasEl: HTMLCanvasElement, particleData: ParticleMap) {
+    // Initialise fields
+    this.boggedState = boggedStateInstance;
+    this.windowManager = new WindowManager(boggedStateInstance, vieportEl);
+    this.viewport = vieportEl;
+    this.canvas = canvasEl;
 
-  // Input states
-  private _activePointerId: number | null;
-  public isPainting: boolean;
-  public isErasing: boolean;
-  public isDrawingOverlay: boolean;
-  public shouldChangeBrushSize: boolean;
-  public changeBrushSizeDir: number;
-  public latestMouseCoords: Vector2;
-  public activeButton: string;
+    // Particle palette is openned at startup
+    this.windowManager.addPaletteWindow(particleData);
 
-  constructor(
-    particleDataMap: ParticleMap,
-    inputContainer: HTMLDivElement,
-    canvas: HTMLCanvasElement,
-    settings: GameSettings,
-    rendererInstance: Renderer
-  ) {
-    this._mainContainer = inputContainer;
-    this._canvas = canvas;
-    this._renderer = rendererInstance;
+    // Bind inputs to DOM elements
+    this.bindAppMenuEvents();
+    this.bindCanvasEvents();
 
-    this._width = settings.GAME_WIDTH;
-    this._height = settings.GAME_HEIGHT;
-    this._brushSizeSensitivity = settings.BRUSH_SENSITIVITY;
-    this._maxBrushSize = settings.BRUSH_MAX_SIZE;
+    // Disable right click context menu on viewport
+    this.viewport.addEventListener("contextmenu", (e: PointerEvent) => {
+      e.preventDefault();
+    });
 
-    this._selectedParticle = settings.SELECTED_PARTICLE;
-    this._selectedCategory = settings.SELECTED_CATEGORY;
-    this._currentBrushSize = settings.BRUSH_CUR_SIZE;
-    this._currentPressure = settings.CURRENT_PRESSURE;
-    this._currentConcentration = settings.CURRENT_CONCENTRATION;
-
-    this._activePointerId = null;
-    this.isPainting = false;
-    this.isErasing = false;
-    this.isDrawingOverlay = true;
-    this.shouldChangeBrushSize = false;
-    this.changeBrushSizeDir = 0;
-    this.latestMouseCoords = { x: 0, y: 0 };
-    this.activeButton = "none";
-
-    // Bind listeners
-    this._addEventListeners();
-
-    // Add particle palette window
-    this._addParticlePaletteWindow(particleDataMap);
-
-    //
-    document.addEventListener("click", this._handleGlobalClick);
-  }
-
-  // --------- Public Methods ---------
-
-  // ..
-  processInput(grid: Grid, renderer: Renderer) {
-    const mouseX: number = this.latestMouseCoords.x;
-    const mouseY: number = this.latestMouseCoords.y;
-    const mousePosition: Vector2 = { x: Math.floor(mouseX), y: Math.floor(mouseY) };
-
-    // --- Handle UI rendering ---
-    if (this.isDrawingOverlay) {
-      const brushOutlineOverlay: Pixel[] = this._calculateBrushOutline(mousePosition.x, mousePosition.y);
-      renderer.queueUIPixels(brushOutlineOverlay);
-    }
-
-    // --- Handle input ---
-
-    // Paint particles
-    if (this.isPainting || this.isErasing) {
-      // Check if the cursor is inside the canvas
-      const isInXBounds: boolean = mousePosition.x < this._width + this._currentBrushSize && mousePosition.x >= 0 - this._currentBrushSize;
-      const isInYBounds: boolean = mousePosition.y < this._height + this._currentBrushSize && mousePosition.y >= 0 - this._currentBrushSize;
-      if (isInXBounds && isInYBounds) {
-        const x = mousePosition.x;
-        const y = mousePosition.y;
-        const particleId: number = this.isPainting ? this._selectedParticle : 0; // We are erasing
-        grid.fillCircleAt(x, y - 1, this._currentBrushSize, particleId);
+    // Global listener for closing any opened app menu
+    document.addEventListener("click", (event) => {
+      // App menu is closed, return
+      if (!this.isAppMenuOpen) {
+        return;
       }
-    }
 
-    // Change brush size
-    if (this.shouldChangeBrushSize) {
-      // Calculate new brush size
-      const scrollDelta: number = this.changeBrushSizeDir * this._brushSizeSensitivity;
-      let newSize: number = this._currentBrushSize - scrollDelta;
-
-      // Clamp it between 0 and max brush size
-      newSize = Math.floor(newSize);
-      newSize = Math.min(this._maxBrushSize, newSize);
-      newSize = Math.max(0, newSize);
-
-      // Set the new brush size
-      this._currentBrushSize = newSize;
-      this.changeBrushSizeDir = 0;
-    }
+      // Close app menu if the click occured outside the app menu's item
+      const isClickOnMenubar = (event.target as HTMLElement)?.closest(".app-menu__menu-item");
+      if (!isClickOnMenubar) {
+        const openDropdowns = document.querySelectorAll(".app-menu__dropdown[style*='block']");
+        openDropdowns.forEach((el) => {
+          (el as HTMLDivElement).style.display = "none";
+        });
+        this.isAppMenuOpen = false;
+      }
+    });
   }
 
   // --------- Helper Functions ---------
 
-  // ..
-  _addEventListeners() {
-    // Get references to DOM elements
-    const canvas = this._canvas;
-
-    // Pointer events (mouse, touch, and stylus)
-    canvas.addEventListener("pointerdown", this._onPointerDown);
-    canvas.addEventListener("pointermove", this._onPointerMove);
-    canvas.addEventListener("pointerup", this._onPointerUp);
-    canvas.addEventListener("pointercancel", this._onPointerCancel);
-    canvas.addEventListener("lostpointercapture", this._onPointerCancel);
-    canvas.addEventListener("pointerenter", this._onPointerEnter);
-    canvas.addEventListener("pointerleave", this._onPointerLeave);
-    canvas.addEventListener("focus", this._onPointerEnter);
-    canvas.addEventListener("blur", this._onPointerLeave);
-
-    // Mouse wheel
-    canvas.addEventListener("wheel", this._onWheel, { passive: false });
-
-    // Disable right click context manu
-    this._mainContainer.addEventListener("contextmenu", this._onContextMenu);
-
-    // Window fallbacks
-    window.addEventListener("pointerup", this._onWindowPointerUp);
-    window.addEventListener("mouseup", this._onWindowPointerUp);
-    document.addEventListener("visibilitychange", this._onVisibilityChange);
+  // Bind app menu event lisnteners
+  private bindAppMenuEvents() {
+    this._processAppMenuItem("bog-menu-item", ["About bog engine", "Settings", "Quit"]);
+    this._processAppMenuItem("file-item", ["Save", "Load", "New scene", "Exit"]);
+    this._processAppMenuItem("edit-item", ["Undo", "Redo", "Preferences"]);
+    this._processAppMenuItem("view-item", ["Zoom In", "Zoom Out", "Reset View"]);
+    this._processAppMenuItem("help-item", ["Documentation", "Report Issue"]);
   }
-  _onPointerDown = (e: PointerEvent) => {
-    this._activePointerId = e.pointerId;
-
-    // Left mouse button
-    if (e.button === 0) {
-      this.isPainting = true;
-      this.isErasing = false;
-      this.activeButton = "left";
-    }
-    // Right mouse button
-    else if (e.button === 2) {
-      this.isErasing = true;
-      this.isPainting = false;
-      this.activeButton = "right";
-    }
-    // Middle mouse button
-    else {
-      this.isPainting = false;
-      this.isErasing = false;
-      this.activeButton = "none";
-    }
-
-    // Capture pointer to keep receiving pointer events even if pointer leaves the canvas
-    try {
-      this._canvas.setPointerCapture(e.pointerId);
-    } catch (err) {}
-
-    // Get canvas dimensions
-    const rect: DOMRect = this._canvas.getBoundingClientRect();
-    const scaleX: number = this._width / rect.width;
-    const scaleY: number = this._height / rect.height;
-
-    // Calculate mouse position relative to the canvas
-    this.latestMouseCoords.x = (e.clientX - rect.left) * scaleX;
-    this.latestMouseCoords.y = this._canvas.height - (e.clientY - rect.top) * scaleY; // Flip Y
-  };
-  _onPointerUp = (e: PointerEvent) => {
-    if (this._activePointerId === e.pointerId) {
-      this._activePointerId = null;
-      this.activeButton = "none";
-      try {
-        this._canvas.releasePointerCapture(e.pointerId);
-      } catch (err) {}
-    }
-
-    // Clear flags on pointerup
-    this.isPainting = false;
-    this.isErasing = false;
-  };
-  _onPointerMove = (e: PointerEvent) => {
-    // Get canvas dimensions
-    const rect: DOMRect = this._canvas.getBoundingClientRect();
-    const scaleX: number = this._width / rect.width;
-    const scaleY: number = this._canvas.height / rect.height;
-
-    // Calculate mouse position relative to the canvas
-    this.latestMouseCoords.x = (e.clientX - rect.left) * scaleX;
-    this.latestMouseCoords.y = this._canvas.height - (e.clientY - rect.top) * scaleY; // Flip Y
-
-    // Only update if user actually changed hold state mid drag
-    if (typeof e.buttons === "number") {
-      const leftPressed: boolean = (e.buttons & 1) === 1;
-      const rightPressed: boolean = (e.buttons & 2) === 2;
-      this.isPainting = leftPressed;
-      this.isErasing = rightPressed;
-    }
-  };
-  _onPointerCancel = (e: PointerEvent) => {
-    this.isPainting = false;
-    this.isErasing = false;
-
-    if (this._activePointerId === e.pointerId) {
-      try {
-        this._canvas.releasePointerCapture(e.pointerId);
-      } catch (err) {}
-      this._activePointerId = null;
-      this.activeButton = "none";
-    }
-  };
-  _onWindowPointerUp = () => {
-    this.isPainting = false;
-    this.isErasing = false;
-    this._activePointerId = null;
-    this.activeButton = "none";
-  };
-  _onVisibilityChange = () => {
-    if (document.hidden) {
-      this.isPainting = false;
-      this.isErasing = false;
-      this._activePointerId = null;
-      this.activeButton = "none";
-    }
-  };
-  _onWheel = (e: WheelEvent) => {
-    e.preventDefault();
-    this.shouldChangeBrushSize = true;
-    this.changeBrushSizeDir = e.deltaY;
-  };
-  _onContextMenu = (e: PointerEvent) => {
-    e.preventDefault();
-  };
-  _onPointerEnter = () => {
-    this.isDrawingOverlay = true;
-  };
-  _onPointerLeave = () => {
-    this.isDrawingOverlay = false;
-  };
-
-  // ..
-  _addParticlePaletteWindow(particleDataMap: ParticleMap) {
-    // Create a new window
-    const name = "Particle Palette";
-    const position: Vector2 = { x: 320, y: 300 };
-    const size: Size = { width: 250, height: 200 };
-    const maxSize: Size = { width: 420, height: 400 };
-    const paletteWindow = new Window(this._mainContainer, name, position, size, maxSize);
-    paletteWindow.setContentOrientation("bottom");
-
-    // Add contents for solids, liquids, gases, sands, electronics and settings
-    const solidsContent = document.createElement("div");
-    solidsContent.classList.add("particle-palette-container");
-    paletteWindow.addNewContent(solidsContent, "Solids", "./assets/icons/solid.svg");
-    const liquidsContent = document.createElement("div");
-    liquidsContent.classList.add("particle-palette-container");
-    paletteWindow.addNewContent(liquidsContent, "Liquids", "./assets/icons/liquid.svg");
-    const gasesContent = document.createElement("div");
-    gasesContent.classList.add("particle-palette-container");
-    paletteWindow.addNewContent(gasesContent, "Gases", "./assets/icons/gas.svg");
-    const sandsContent = document.createElement("div");
-    sandsContent.classList.add("particle-palette-container");
-    paletteWindow.addNewContent(sandsContent, "Sands", "./assets/icons/sand.svg");
-    const electronicsContent = document.createElement("div");
-    electronicsContent.classList.add("particle-palette-container");
-    paletteWindow.addNewContent(electronicsContent, "Electronics", "./assets/icons/electronics.svg");
-    const settingsContent = new WindowContent();
-    let orientationButton = settingsContent.addDropdownButton("Orientation", ["Top", "Left", "Right", "Bottom"], 3, "palette-orientation");
-    orientationButton.items.forEach((item) => {
-      item.addEventListener("click", () => {
-        const newOrientation = item.dataset.value as ContentBarOrientation;
-        if (newOrientation) paletteWindow.setContentOrientation(newOrientation);
-      });
-    });
-    paletteWindow.addContentBarSeparator(true);
-    paletteWindow.addNewContent(settingsContent.contentElement, "Settings", "./assets/icons/settings.svg");
-
-    // Select category liquids
-    const liquidsCategory = 2;
-    const liquidsCategoryIndex = liquidsCategory - 1;
-    paletteWindow.displayContent(liquidsCategoryIndex);
-    this._selectedCategory = liquidsCategory;
-
-    // Add custom event listener for category buttons
-    const categoryButtons: HTMLButtonElement[] = paletteWindow.contentBarButtons;
-    const categoryContainers: HTMLDivElement[] = paletteWindow.contents;
-
-    for (let i = 0; i < categoryButtons.length - 1; i++) {
-      categoryButtons[i]!.addEventListener("click", () => {
-        if (this._selectedCategory === i + 1) return;
-
-        // Deselect all currently selected particle buttons
-        for (const container of categoryContainers) {
-          const selectedButton = container.querySelector(".selected");
-          if (selectedButton) {
-            selectedButton.classList.remove("selected");
-          }
-        }
-
-        // Select the first particle button
-        const categoryContainer = categoryContainers[i];
-        if (categoryContainer) {
-          const firstParticleButton = categoryContainer.querySelector<HTMLButtonElement>(".particle-button");
-          if (firstParticleButton) {
-            firstParticleButton.classList.add("selected");
-            this._selectedParticle = parseInt(firstParticleButton.dataset.particleId || "0", 10);
-            this._selectedCategory = parseInt(firstParticleButton.dataset.category || "0", 10);
-          } else {
-            this._selectedParticle = 0;
-            this._selectedCategory = 0;
-          }
-        }
-      });
-    }
-
-    // Create particle buttons and append them to each category
-    let particleSelected = false;
-    for (const key in particleDataMap) {
-      const particleData = particleDataMap[key];
-      if (!particleData) {
-        continue;
-      }
-
-      const categoryContainer = categoryContainers[particleData.category - 1];
-      if (!categoryContainer) {
-        continue;
-      }
-
-      // Calculate colors
-      const baseColor: string = particleData.baseColor;
-      const variantColor: string = particleData.variantColor;
-      const luminance: number = color.getLuminance(color.hexToColor(baseColor));
-      const textColor: string = luminance > 210 ? "#323238" : "#FFFFFFFF";
-      const shadowColor: Color = color.hexToColor(textColor);
-
-      // Create a new particle button
-      const newButton = document.createElement("button");
-      newButton.className = "particle-button";
-      newButton.textContent = particleData.name;
-      newButton.style.setProperty("--particle-button-base-color", baseColor);
-      newButton.style.setProperty("--particle-button-variant-color", variantColor);
-      newButton.style.color = textColor;
-      newButton.style.textShadow = `1px 1px 2px rgba(${shadowColor[0]}, ${shadowColor[1]}, ${shadowColor[2]}, 0.6)`;
-
-      // Create datasets for it
-      newButton.dataset.particleId = particleData.id.toString();
-      newButton.dataset.category = particleData.category.toString();
-
-      // Add event listener for it
-      newButton.addEventListener("click", () => {
-        // Deselect previously selected particle buttons
-        for (const container of categoryContainers) {
-          const selectedButton = container.querySelector(".selected");
-          if (selectedButton) {
-            selectedButton.classList.remove("selected");
-          }
-        }
-
-        // Select the clicked one
-        newButton.classList.add("selected");
-
-        // Update states
-        this._selectedParticle = particleData.id;
-        this._selectedCategory = particleData.category;
+  _processAppMenuItem(id: string, items: string[]) {
+    const createAppMenuDropBar = (itemEl: HTMLDivElement, itemList: string[]) => {
+      const listEl = document.createElement("div");
+      listEl.classList.add("app-menu__dropdown");
+      listEl.style.display = "none";
+      itemList.forEach((text) => {
+        const el = document.createElement("div");
+        el.classList.add("app-menu__dropdown-item");
+        el.textContent = text;
+        listEl.appendChild(el);
       });
 
-      // Append them to their category
-      categoryContainer.appendChild(newButton);
+      itemEl.appendChild(listEl);
+      return listEl;
+    };
 
-      // Select the first particle with selected category
-      if (!particleSelected && particleData.category === this._selectedCategory) {
-        newButton.classList.add("selected");
-        this._selectedParticle = particleData.id;
-        particleSelected = true;
-      }
+    const createAppMenuListeners = (itemEl: HTMLDivElement, listEl: HTMLDivElement) => {
+      itemEl.addEventListener("click", (event) => {
+        event.stopPropagation();
+
+        // Close all other dropdowns
+        const currentlyOpen = document.querySelector(".app-menu__dropdown[style*='block']");
+        if (currentlyOpen && currentlyOpen !== listEl) {
+          (currentlyOpen as HTMLDivElement).style.display = "none";
+        }
+
+        // Toggle this dropdown
+        if (listEl.style.display === "block") {
+          listEl.style.display = "none";
+          this.isAppMenuOpen = false;
+        } else {
+          listEl.style.display = "block";
+          this.isAppMenuOpen = true;
+        }
+      });
+      itemEl.addEventListener("mouseenter", () => {
+        if (this.isAppMenuOpen && listEl.style.display !== "block") {
+          const currentlyOpen = document.querySelector(".app-menu__dropdown[style*='block']");
+          if (currentlyOpen && currentlyOpen !== listEl) {
+            (currentlyOpen as HTMLDivElement).style.display = "none";
+          }
+          // Open this dropdown
+          listEl.style.display = "block";
+        }
+      });
+    };
+
+    const itemEl = document.getElementById(id);
+    if (itemEl instanceof HTMLDivElement) {
+      const dropDownEl = createAppMenuDropBar(itemEl, items);
+      createAppMenuListeners(itemEl, dropDownEl);
     }
   }
 
-  // ..
-  _handleGlobalClick = (event: MouseEvent) => {
-    document.querySelectorAll(".dropdown-list.is-open").forEach((list) => {
-      const originId = (list as HTMLElement).dataset.originId;
-      const originContainer = originId ? document.getElementById(originId) : null;
-      if (!list.contains(event.target as Node) && !originContainer?.contains(event.target as Node)) {
-        list.classList.remove("is-open");
-        originContainer?.appendChild(list);
-      }
-    });
-  };
-
-  // Function to generate the overlay map for the circle outline
-  _calculateBrushOutline(centerX: number, centerY: number): Pixel[] {
-    const radius: number = this._currentBrushSize;
-    const pixels: Pixel[] = [];
-    const r: number = 227;
-    const g: number = 227;
-    const b: number = 227;
-    const a: number = 180;
-
-    const width: number = this._width;
-    const height: number = this._height;
-    const offsets: number[] = [-1, 1];
-
-    const plotOctets = (x: number, y: number) => {
-      for (const bigY of offsets) {
-        for (const bigX of offsets) {
-          const newX = centerX + x * bigX;
-          const newY = centerY + y * bigY;
-          const newx = centerX + y * bigX;
-          const newy = centerY + x * bigY;
-
-          if (newX >= 0 && newX < width && newY >= 0 && newY < height) {
-            const index = (height - newY) * width + newX;
-            pixels.push({ index: index, value: new Uint8ClampedArray([r, g, b, a]) as Color });
-          }
-          if (newx >= 0 && newx < width && newy >= 0 && newy < height) {
-            const index = (height - newy) * width + newx;
-            pixels.push({ index: index, value: new Uint8ClampedArray([r, g, b, a]) as Color });
-          }
+  // Bind canvas related event listeners
+  private bindCanvasEvents() {
+    // Helper functions for this function
+    const releaseCanvasPointerCapture = (e: PointerEvent) => {
+      try {
+        this.canvas.releasePointerCapture(e.pointerId);
+      } catch (err) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Pointer capture error:", err);
         }
       }
     };
-
-    let x: number = radius;
-    let y: number = 0;
-    let P: number = radius - radius;
-
-    plotOctets(x, y);
-
-    while (y < x) {
-      y++;
-      if (P < 0) {
-        P += 2 * y + 1;
-      } else {
-        x--;
-        P += 2 * (y - x) + 1;
+    const setCanvasPointerCapture = (e: PointerEvent) => {
+      try {
+        this.canvas.setPointerCapture(e.pointerId);
+      } catch (err) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Pointer capture error:", err);
+        }
       }
-      plotOctets(x, y);
-    }
-    return pixels;
+    };
+    const updateMouseCoords = (e: PointerEvent) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.boggedState.gameWidth / rect.width;
+      const scaleY = this.boggedState.gameHeight / rect.height;
+      const mouseX = (e.clientX - rect.left) * scaleX;
+      const mouseY = this.canvas.height - (e.clientY - rect.top) * scaleY;
+      this.boggedState.mouseX = mouseX;
+      this.boggedState.mouseY = mouseY;
+    };
+
+    // Handle when pointer button is pressed
+    this.canvas.addEventListener("pointerdown", (e: PointerEvent) => {
+      // Update mouse coordinates
+      updateMouseCoords(e);
+
+      switch (e.button) {
+        case 0: // Left Click
+          this.boggedState.isLeftMouseButtonDown = true;
+          break;
+
+        case 2: // Right Clicl
+          this.boggedState.isRightMouseButtonDown = true;
+          break;
+
+        default:
+          this.boggedState.isLeftMouseButtonDown = false;
+          this.boggedState.isRightMouseButtonDown = false;
+          break;
+      }
+
+      // Capture pointer to keep receiving pointer events even if pointer leaves the canvas
+      setCanvasPointerCapture(e);
+      this.activePointerId = e.pointerId;
+    });
+
+    // Handle when pointer moves
+    this.canvas.addEventListener("pointermove", (e: PointerEvent) => {
+      // Update mouse coordinates
+      updateMouseCoords(e);
+
+      // Update pointer button if user changed hold state mid drag
+      if (typeof e.buttons === "number") {
+        this.boggedState.isLeftMouseButtonDown = (e.buttons & 1) === 1;
+        this.boggedState.isRightMouseButtonDown = (e.buttons & 2) === 2;
+      }
+    });
+
+    // Handle when pointer button is released
+    this.canvas.addEventListener("pointerup", (e: PointerEvent) => {
+      if (this.activePointerId === e.pointerId) {
+        releaseCanvasPointerCapture(e);
+        this.activePointerId = null;
+      }
+
+      this.boggedState.isLeftMouseButtonDown = false;
+      this.boggedState.isRightMouseButtonDown = false;
+    });
+
+    // Handle when pointer button aborted unexpectedly
+    this.canvas.addEventListener("pointercancel", (e: PointerEvent) => {
+      if (this.activePointerId === e.pointerId) {
+        releaseCanvasPointerCapture(e);
+        this.activePointerId = null;
+      }
+
+      this.boggedState.isLeftMouseButtonDown = false;
+      this.boggedState.isRightMouseButtonDown = false;
+    });
+
+    // Handle when canvas losts pointer
+    this.canvas.addEventListener("lostpointercapture", (e: PointerEvent) => {
+      if (this.activePointerId === e.pointerId) {
+        releaseCanvasPointerCapture(e);
+        this.activePointerId = null;
+      }
+
+      this.boggedState.isLeftMouseButtonDown = false;
+      this.boggedState.isRightMouseButtonDown = false;
+    });
+
+    // Handle when pointer enters the canvas area
+    this.canvas.addEventListener("pointerenter", () => {
+      this.boggedState.isBrushOutlineVisible = true;
+    });
+
+    // Handle when pointer leaves the canvas area
+    this.canvas.addEventListener("pointerleave", () => {
+      this.boggedState.isBrushOutlineVisible = false;
+    });
+
+    // Handle when canvas is focused
+    this.canvas.addEventListener("focus", () => {
+      this.boggedState.isBrushOutlineVisible = true;
+    });
+
+    // Handle when canvas is unfocused
+    this.canvas.addEventListener("blur", () => {
+      this.boggedState.isBrushOutlineVisible = false;
+    });
+
+    // Handle when mouse wheel event occurs
+    this.canvas.addEventListener(
+      "wheel",
+      (e: WheelEvent) => {
+        e.preventDefault();
+        const scrollDelta: number = Math.floor(this.boggedState.currentBrushSize - e.deltaY * this.boggedState.brushSensitivity);
+        const newSize: number = Math.max(0, Math.min(scrollDelta, this.boggedState.brushMaxSize));
+        this.boggedState.currentBrushSize = newSize;
+      },
+      { passive: false }
+    );
+
+    // Handle window fallback events
+    window.addEventListener("pointerup", () => {
+      this.boggedState.isLeftMouseButtonDown = false;
+      this.boggedState.isRightMouseButtonDown = false;
+      this.activePointerId = null;
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        this.boggedState.isLeftMouseButtonDown = false;
+        this.boggedState.isRightMouseButtonDown = false;
+        this.activePointerId = null;
+      }
+    });
   }
 }

@@ -1,0 +1,19 @@
+# =======================================================================
+# -------------------------- User Settings ------------------------------
+# # -> comment
+# [category].setting_name: value
+
+# Engine
+engine.width: 342
+engine.height: 192
+engine.render_interval: 16.667
+engine.physics_interval: 25
+
+# Input
+input.brush_size: 4
+input.brush_max_size: 42
+input.brush_sensitivity: 0.02
+
+# debug
+debug.start_enabled: true
+debug.overlay_start_enabled: false

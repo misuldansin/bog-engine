@@ -1,7 +1,9 @@
-import type { Particle, Index, Color, Pixel, GameSettings } from "../types";
+import type { BoggedState } from "../core/bogged_state";
+import type { Particle, Color, Pixel } from "../types";
 
 export class Renderer {
   // DOM elements
+  boggedState: BoggedState;
   _canvas: HTMLCanvasElement;
   _ctx: CanvasRenderingContext2D;
 
@@ -13,19 +15,22 @@ export class Renderer {
   _queuedOverlayPixels: Pixel[];
   _queuedUIPixels: Pixel[];
 
-  constructor(canvas: HTMLCanvasElement, settings: GameSettings) {
+  constructor(boggedStateInstance: BoggedState, canvas: HTMLCanvasElement) {
+    this.boggedState = boggedStateInstance;
+
     // Load DOM dependencies
     this._canvas = canvas;
     this._ctx = this._canvas.getContext("2d") as CanvasRenderingContext2D;
 
-    this._renderWidth = settings.GAME_WIDTH;
-    this._renderHeight = settings.GAME_HEIGHT;
+    this._renderWidth = this.boggedState.gameWidth;
+    this._renderHeight = this.boggedState.gameHeight;
     this._frameBuffer = new Uint8ClampedArray(this._renderWidth * this._renderHeight * 4);
     this._queuedParticles = [];
     this._queuedOverlayPixels = [];
     this._queuedUIPixels = [];
 
     // Initialise HTML elements
+    this._canvas.style.aspectRatio = (this.boggedState.gameWidth / this.boggedState.gameHeight).toString();
     this._canvas.width = this._renderWidth;
     this._canvas.height = this._renderHeight;
     this._ctx.imageSmoothingEnabled = false;
@@ -65,6 +70,12 @@ export class Renderer {
 
   // ..
   renderThisFrame() {
+    // Draw brush outline on the canvas
+    if (this.boggedState.isBrushOutlineVisible) {
+      const brushOutline = this.getBrushOutline(Math.floor(this.boggedState.mouseX), Math.floor(this.boggedState.mouseY));
+      this._queuedUIPixels = brushOutline;
+    }
+
     // Step 1. proccess queued particles this frame
     this.#processQueuedParticles();
 
@@ -136,5 +147,57 @@ export class Renderer {
       baseBuffer[index * 4 + 2] = outB;
       baseBuffer[index * 4 + 3] = outA;
     }
+  }
+
+  // Function to generate the overlay map for the circle outline
+  private getBrushOutline(centerX: number, centerY: number): Pixel[] {
+    const radius: number = this.boggedState.currentBrushSize;
+    const pixels: Pixel[] = [];
+    const r: number = 227;
+    const g: number = 227;
+    const b: number = 227;
+    const a: number = 180;
+
+    const width: number = this.boggedState.gameWidth;
+    const height: number = this.boggedState.gameHeight;
+    const offsets: number[] = [-1, 1];
+
+    const plotOctets = (x: number, y: number) => {
+      for (const bigY of offsets) {
+        for (const bigX of offsets) {
+          const newX = centerX + x * bigX;
+          const newY = centerY + y * bigY;
+          const newx = centerX + y * bigX;
+          const newy = centerY + x * bigY;
+
+          if (newX >= 0 && newX < width && newY >= 0 && newY < height) {
+            const index = (height - newY) * width + newX;
+            pixels.push({ index: index, value: new Uint8ClampedArray([r, g, b, a]) as Color });
+          }
+          if (newx >= 0 && newx < width && newy >= 0 && newy < height) {
+            const index = (height - newy) * width + newx;
+            pixels.push({ index: index, value: new Uint8ClampedArray([r, g, b, a]) as Color });
+          }
+        }
+      }
+    };
+
+    let x: number = radius;
+    let y: number = 0;
+    let P: number = radius - radius;
+
+    plotOctets(x, y);
+
+    while (y < x) {
+      y++;
+      if (P < 0) {
+        P += 2 * y + 1;
+      } else {
+        x--;
+        P += 2 * (y - x) + 1;
+      }
+      plotOctets(x, y);
+    }
+    return pixels;
   }
 }

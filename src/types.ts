@@ -1,19 +1,19 @@
 // --------- CORE TYPES ---------
-export type GameSettings = {
-  GAME_WIDTH: number;
-  GAME_HEIGHT: number;
-  SELECTED_PARTICLE: number;
-  SELECTED_CATEGORY: number;
-  BRUSH_MAX_SIZE: number;
-  BRUSH_CUR_SIZE: number;
-  BRUSH_SENSITIVITY: number;
-  CURRENT_PRESSURE: number;
-  CURRENT_CONCENTRATION: number;
-  DEBUG_START_ENABLED: boolean;
-  DEBUG_OVERLAY_START_ENABLED: boolean;
-  RENDER_UPDATE_INTERVAL: number;
-  PHYSICS_UPDATE_INTERVAL: number;
-};
+export interface GameSettings {
+  gameWidth: number;
+  gameHeight: number;
+  renderInterval: number;
+  physicsInterval: number;
+
+  brushSize: number;
+  brushMaxSize: number;
+  brushSensitivity: number;
+
+  debugEnabled: boolean;
+  debugOverlayEnabled: boolean;
+}
+
+export type ActiveButton = "left" | "right" | "none";
 
 // export type Group = {};
 

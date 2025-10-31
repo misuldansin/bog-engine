@@ -13,16 +13,18 @@ import type {
 } from "../types";
 
 import { Grid, NEIGHBOR, NEIGHBORHOOD } from "../structs/grid";
-import { Settings } from "../settings";
 import type { Renderer } from "../io/renderer";
 import type { InputManager } from "../io/inputManager";
 import type { Debug } from "../io/debug";
 import { Utilities } from "../structs/utils";
+import type { BoggedState } from "./bogged_state";
 
 // ! temp: ..
 const neighborKeys = Object.keys(NEIGHBOR) as Array<keyof typeof NEIGHBOR>;
 
 export class Engine {
+  private readonly boggedState: BoggedState;
+
   // Dependencies
   #renderer: Renderer;
   #inputManager: InputManager;
@@ -37,7 +39,7 @@ export class Engine {
   // Loop variables
   #isRunning: boolean;
   #animationFrameId: number | null;
-  #renderUpdateInterval: number;
+  #renderInterval: number;
   #physicsInterval: number;
 
   // Time tracking variables
@@ -50,25 +52,27 @@ export class Engine {
   #clearDirtyFreq = 60;
 
   constructor(
-    particleDataBlueprint: ParticleMap,
-    settings: GameSettings,
+    boggedStateInstance: BoggedState,
     renderInstance: Renderer,
     inputManagerInstance: InputManager,
-    debugInstance: Debug
+    debugInstance: Debug,
+    particleData: ParticleMap
   ) {
+    this.boggedState = boggedStateInstance;
+
     this.#renderer = renderInstance;
     this.#inputManager = inputManagerInstance;
     this.#debug = debugInstance;
 
-    this.#gameWidth = settings.GAME_WIDTH;
-    this.#gameHeight = settings.GAME_HEIGHT;
-    this.#currentGrid = new Grid(this.#gameWidth, this.#gameHeight, particleDataBlueprint);
+    this.#gameWidth = this.boggedState.gameWidth;
+    this.#gameHeight = this.boggedState.gameHeight;
+    this.#currentGrid = new Grid(this.#gameWidth, this.#gameHeight, particleData);
     this.#particlesProcessed = new Set();
 
     this.#isRunning = false;
     this.#animationFrameId = null;
-    this.#renderUpdateInterval = Settings.RENDER_UPDATE_INTERVAL;
-    this.#physicsInterval = Settings.PHYSICS_UPDATE_INTERVAL;
+    this.#renderInterval = this.boggedState.renderInterval;
+    this.#physicsInterval = this.boggedState.physicsInterval;
 
     this.#lastFrameTime = null;
     this.#accumulator = 0;
@@ -79,7 +83,7 @@ export class Engine {
   start() {
     if (!this.#isRunning) {
       this.#isRunning = true;
-      this.#gameLoop(0);
+      this.gameLoop(0);
     }
   }
 
@@ -93,13 +97,13 @@ export class Engine {
   }
 
   // ..
-  #gameLoop = (timestamp: number) => {
+  private gameLoop = (timestamp: number) => {
     if (!this.#isRunning) return;
 
     // Skip the first frame
     if (!this.#lastFrameTime) {
       this.#lastFrameTime = timestamp;
-      this.#animationFrameId = requestAnimationFrame(this.#gameLoop);
+      this.#animationFrameId = requestAnimationFrame(this.gameLoop);
       return;
     }
 
@@ -107,7 +111,7 @@ export class Engine {
     this.#lastFrameTime = timestamp;
 
     // ------ Handle Input ------
-    this.#inputManager.processInput(this.#currentGrid, this.#renderer);
+    this.handleInput();
 
     // ------ Update Physics ------
     this.#accumulator += delta;
@@ -148,8 +152,30 @@ export class Engine {
     // ------ Update Debug Stats ------
     this.#debug.updateDisplay(timestamp, this);
 
-    this.#animationFrameId = requestAnimationFrame(this.#gameLoop);
+    this.#animationFrameId = requestAnimationFrame(this.gameLoop);
   };
+
+  private handleInput() {
+    // Paint Particles
+    if (this.boggedState.isLeftMouseButtonDown) {
+      this.#currentGrid.fillCircleAt(
+        Math.floor(this.boggedState.mouseX),
+        Math.floor(this.boggedState.mouseY),
+        this.boggedState.currentBrushSize,
+        this.boggedState.selectedParticleId
+      );
+    }
+
+    // Erase Particles
+    if (this.boggedState.isRightMouseButtonDown) {
+      this.#currentGrid.fillCircleAt(
+        Math.floor(this.boggedState.mouseX),
+        Math.floor(this.boggedState.mouseY),
+        this.boggedState.currentBrushSize,
+        0
+      );
+    }
+  }
 
   // ..
   #stepPhysics(particlesToUpdate: Particle[]) {

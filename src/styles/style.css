@@ -1,19 +1,51 @@
 :root {
-  --menu-bar-bg: #383c47;
-  --menu-bar-height: 36px;
+  --font-family-primary: "Inter", "Segoe UI", sans-serif;
+  --font-family-secondary: "Pixelify Sans";
+
+  --color-bg-primary: #1b1c1e;
+  --color-bg-secondary: #232528;
+  --color-bg-variant: #2d2f33;
+
+  --color-surface-raised: #2a2c30;
+  --color-surface-overlay: rgba(0, 0, 0, 0.35);
+
+  --color-text-primary: #e7e8eb;
+  --color-text-secondary: #a9abb0;
+  --color-text-muted: #7b7d82;
+  --color-text-inverse: #ffffff;
+
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-light: rgba(255, 255, 255, 0.04);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
+
+  --color-hover: #36383d;
+  --color-active: #414349;
+  --color-ok: #49ca6f;
+  --color-error: #e66060;
+  --color-warning: #ebb75d;
+  --color-info: #67b4e4;
+
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-bold: 0 4px 10px rgba(0, 0, 0, 0.5);
+  --shadow-strong: 4px 4px 10px rgba(0, 0, 0, 0.7);
+
+  --particle-button-base-color: #2c2c2c;
+  --particle-button-variant-color: #1e1e1e;
 }
 
+/** APPLICATION LAYOUT CLASSES ----------------------------- */
+/** ======================================================== */
 body {
   width: 100vw;
   height: 100vh;
   display: flex;
   margin: 0;
+  overflow: hidden;
 }
 
-/** DESKTOP CLASSES ---------------------------------------- */
-/** ======================================================== */
 #desktop {
-  background-color: #0f0f0f;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  color: var(--color-text-primary);
   width: 100%;
   height: 100%;
 
@@ -24,16 +56,81 @@ body {
 }
 
 #menu-bar {
-  background-color: var(--menu-bar-bg);
+  background-color: #2b2d31;
+  color: var(--color-text-primary);
   width: 100%;
   flex-shrink: 0;
-  height: var(--menu-bar-height);
+  height: 30px;
+
+  border-bottom: 1px solid var(--color-border-light);
+  box-shadow: var(--shadow-soft);
+  padding: 0 12px;
 
   display: flex;
   align-items: center;
+  user-select: none;
+}
+
+#bog-menu {
+  display: flex;
+  flex-direction: row;
+}
+
+#app-menu {
+  display: flex;
+  gap: 8px;
+}
+
+#center-menu {
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.center-menu__text {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+
+  flex: 1;
+  text-align: center;
+}
+
+#controls-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  position: absolute;
+  left: 100%;
+  transform: translateX(-120%);
+}
+
+.controls-menu__button {
+  background-color: transparent;
+  border: transparent;
+  font-size: 8px;
+  opacity: 0.7;
+  padding: 4px 6px;
+  border-radius: 6px;
+
+  cursor: pointer;
+  align-content: center;
+  transition: opacity 0.2s, background 0.2s;
+}
+.controls-menu__button:hover {
+  background: var(--color-hover);
+  opacity: 1;
+}
+
+.controls-menu__button__icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
 }
 
 #viewport {
+  background: radial-gradient(circle at 50% 50%, #2b2d31 0%, #1e1f22 80%);
   width: 100%;
   flex-grow: 1;
 
@@ -57,9 +154,117 @@ body {
 
 /** MENUBAR CLASSES ---------------------------------------- */
 /** ======================================================== */
+.app-menu__logo-image {
+  width: 16px;
+  height: 16px;
+  opacity: 0.9;
 
-/** DEBUG CLASSES ------------------------------------------ */
+  vertical-align: middle;
+  transition: opacity 0.2s ease;
+}
+
+.app-menu__menu-item {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 5px;
+
+  position: relative;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.app-menu__menu-item:hover {
+  background: var(--color-bg-variant);
+  color: var(--color-text-primary);
+}
+
+.app-menu__dropdown {
+  background: var(--color-surface-raised);
+  min-width: 150px;
+  z-index: 100;
+
+  border: 1px solid var(--color-border-light);
+  box-shadow: var(--shadow-bold);
+  border-radius: 6px;
+
+  position: absolute;
+  top: 26px;
+  left: 0;
+  display: none;
+  overflow: hidden;
+
+  animation: fadeIn 0.15s ease forwards;
+}
+
+.app-menu__dropdown-item {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  padding: 8px 14px;
+
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.app-menu__dropdown-item:hover {
+  background: var(--color-hover);
+  color: var(--color-text-primary);
+}
+
+/* --- Animations --- */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/** CUSTOM UI CLASSES -------------------------------------- */
 /** ======================================================== */
+.particle-palette-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 12px;
+}
+
+.particle-button {
+  background: linear-gradient(90deg, var(--particle-button-base-color), var(--particle-button-variant-color));
+  color: var(--color-text-primary);
+
+  min-width: 48px;
+  height: 22px;
+
+  border: none;
+  border-radius: 6px;
+
+  padding: 0px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  margin: 3px;
+  text-transform: uppercase;
+  font-family: var(--primary-font);
+  font-size: 0.85rem;
+  text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.3);
+  transition: outline 0.1s ease-in-out;
+}
+.particle-button:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0px 3px 5px rgba(0.2, 0.2, 0.2, 0.2);
+}
+.particle-button.selected {
+  outline: 2px solid yellow;
+  outline-offset: -2px;
+
+  transform: scale(1.08);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+
 .debug-container {
   position: absolute;
   top: 10px;
@@ -86,102 +291,4 @@ body {
   padding: 2px;
   border-radius: 3px;
   font-size: 14px;
-}
-
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-/*  */
-
-* {
-  box-sizing: border-box;
-}
-
-:root {
-  --primary-font: "Pixelify Sans";
-  --primary-bg-color: #1e1e1e;
-  --primary-color: #ccc;
-
-  --desktop-overlay-bg-color: #2c2c2c;
-  --desktop-overlay-width: 80%;
-  --desktop-overlay-max-width: 1000px;
-  --desktop-overlay-height: 20vh;
-  --desktop-overlay-min-height: 120px;
-  --desktop-overlay-border-radius: 0.6rem;
-
-  --particle-palette-bg-color: #2c2c2c;
-  --particle-palette-width: 60%;
-
-  --property-panel-bg-color: #2c2c2c;
-  --property-panel-width: 40%;
-
-  --category-bar-bg-color: #e0e0e0;
-  --category-bar-min-width: 140px;
-  --category-bar-height: 24px;
-
-  --particle-button-base-color: #2c2c2c;
-  --particle-button-variant-color: #1e1e1e;
-  --particle-button-min-width: 48px;
-  --particle-button-height: 22px;
-  --particle-button-border-radius: 6px;
-  --particle-button-margin: 3px;
-  --particle-button-selection-outline-color: yellow;
-  --particle-button-selection-outline-width: 2px;
-  --particle-button-name-font: var(--primary-font);
-}
-
-/** PARTICLE PALETTE CLASSES ------------------------------- */
-/** ======================================================== */
-.particle-palette-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding: 12px;
-}
-
-.particle-button {
-  background: linear-gradient(90deg, var(--particle-button-base-color), var(--particle-button-variant-color));
-  color: white;
-
-  min-width: var(--particle-button-min-width);
-  height: var(--particle-button-height);
-
-  border: none;
-  border-radius: var(--particle-button-border-radius);
-
-  padding: 0px 10px;
-  cursor: pointer;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  margin: var(--particle-button-margin);
-  text-transform: uppercase;
-  font-family: var(--particle-button-name-font);
-  font-size: 0.85rem;
-  text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.3);
-  transition: outline 0.1s ease-in-out;
-}
-.particle-button:hover {
-  transform: translateY(-1.5px);
-  box-shadow: 0px 3px 5px rgba(0.2, 0.2, 0.2, 0.2);
-}
-.particle-button.selected {
-  outline: var(--particle-button-selection-outline-width) solid var(--particle-button-selection-outline-color);
-  outline-offset: -2px;
-
-  transform: scale(1.08);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  z-index: 2;
 }

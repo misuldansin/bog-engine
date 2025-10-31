@@ -48,14 +48,14 @@ export class Grid {
   height: number;
   #data: Particle[];
   #dirtyParticles: Set<Index>;
-  ParticleDataBlueprint: ParticleMap;
+  particleData: ParticleMap;
 
-  constructor(gridWidth: number, gridHeight: number, particleDataBlueprint: ParticleMap) {
+  constructor(gridWidth: number, gridHeight: number, particleData: ParticleMap) {
     this.width = gridWidth;
     this.height = gridHeight;
     this.#data = new Array<Particle>(gridWidth * gridHeight);
     this.#dirtyParticles = new Set();
-    this.ParticleDataBlueprint = particleDataBlueprint;
+    this.particleData = particleData;
 
     // Fill this grid's data array with EMPTY particles
     const EMPTY_PARTICLE_ID = 0;
@@ -75,7 +75,7 @@ export class Grid {
   // ..
   #createParticle(particleId: number): Particle | null {
     // Retrieve particle data from blueprint
-    const particleData: ParticleData | undefined = this.ParticleDataBlueprint[particleId];
+    const particleData: ParticleData | undefined = this.particleData[particleId];
 
     // No particle data exists for this id, return null
     if (!particleData) {
