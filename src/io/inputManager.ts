@@ -261,7 +261,8 @@ export class InputManager {
     });
 
     // Handle when pointer enters the canvas area
-    this.canvas.addEventListener("pointerenter", () => {
+    this.canvas.addEventListener("pointerenter", (e: PointerEvent) => {
+      updateMouseCoords(e);
       this.boggedState.isBrushOutlineVisible = true;
     });
 
