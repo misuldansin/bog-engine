@@ -2,12 +2,17 @@ import type { BoggedState } from "../core/bogged_state";
 import type { Engine } from "../core/engine";
 
 export class Debug {
+  // Dependencies
   private readonly boggedState: BoggedState;
 
-  // Debug states
+  // Debug properties
+  private elements: Map<string, HTMLElement>;
   public isEnabled: boolean;
   public isOverlayEnabled: boolean;
-  private elements: Map<string, HTMLElement>;
+
+  private isStatsEnabled = false;
+  private fpsElement: HTMLDivElement | null = null;
+  private tpsElement: HTMLDivElement | null = null;
 
   // Time tracking for FPS/ TPS
   private frameCount: number = 0;
@@ -19,11 +24,17 @@ export class Debug {
     this.boggedState = boggedStateInstance;
 
     this.isEnabled = isEnabled;
-    this.isOverlayEnabled = isEnabled;
+    this.isOverlayEnabled = false;
     this.elements = new Map();
 
     // Initialise debug UI
     this.initDebug(containerToAttach);
+  }
+
+  public setStatsElements(fpsElement: HTMLDivElement, tpsElement: HTMLDivElement) {
+    this.fpsElement = fpsElement;
+    this.tpsElement = tpsElement;
+    this.isStatsEnabled = true;
   }
 
   // ..
@@ -42,34 +53,29 @@ export class Debug {
   }
 
   // ..
-  public updateDisplay(timestamp: number, engine: Engine) {
+  public updateDisplay(timestamp: number, engineInstance: Engine) {
     // If debugger is disabled, don't bother
     if (!this.isEnabled) return;
 
-    this.updateStats(timestamp, engine);
+    this.frameCount++;
+    if (timestamp >= this.lastStatsUpdateTime + 1000) {
+      const timeElapsed = timestamp - this.lastStatsUpdateTime;
 
-    const fpsElement = this.elements.get("fps");
-    if (fpsElement) {
-      fpsElement.textContent = `FPS: ${this.fps.toFixed(0)}`;
-    }
+      this.fps = (this.frameCount * 1000) / timeElapsed;
+      this.tps = (engineInstance.tickCount * 1000) / timeElapsed;
 
-    const tpsElement = this.elements.get("tps");
-    if (tpsElement) {
-      tpsElement.textContent = `TPS: ${this.tps.toFixed(0)}`;
-    }
-  }
-
-  // ..
-  private updateStats(timestamp: number, engine: Engine) {
-    const delta: number = timestamp - this.lastStatsUpdateTime;
-    if (delta >= 1000) {
-      this.fps = (this.frameCount * 1000) / delta;
-      this.tps = (engine.tickCount * 1000) / delta;
       this.frameCount = 0;
-      engine.tickCount = 0;
+      engineInstance.tickCount = 0;
       this.lastStatsUpdateTime = timestamp;
     }
-    this.frameCount++;
+
+    if (this.fpsElement) {
+      this.fpsElement.textContent = `FPS: ${this.fps.toFixed(0)}`;
+    }
+
+    if (this.tpsElement) {
+      this.tpsElement.textContent = `TPS: ${this.tps.toFixed(0)}`;
+    }
   }
 
   // ..
@@ -85,16 +91,5 @@ export class Debug {
     infoContainer.classList.add("debug-info-container");
     debugContainer.appendChild(infoContainer);
     this.elements.set("info-container", infoContainer);
-
-    // Initialise fps and tps elements inside the info container
-    const fpsElement: HTMLDivElement = document.createElement("div");
-    fpsElement.classList.add("debug-info");
-    infoContainer.appendChild(fpsElement);
-    this.elements.set("fps", fpsElement);
-
-    const tpsElement: HTMLDivElement = document.createElement("div");
-    tpsElement.classList.add("debug-info");
-    infoContainer.appendChild(tpsElement);
-    this.elements.set("tps", tpsElement);
   }
 }

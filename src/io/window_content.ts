@@ -1,7 +1,7 @@
 import type { FontWeight, Index, Size, Vector2 } from "../types";
 
 export class WindowContent {
-  contentElement: HTMLDivElement;
+  public contentElement: HTMLDivElement;
 
   constructor() {
     this.contentElement = document.createElement("div");
@@ -9,7 +9,7 @@ export class WindowContent {
   }
 
   // ..
-  addSeparator(heightPixel: number = 1, isVisible: boolean = false): HTMLDivElement {
+  public addSeparator(heightPixel: number = 1, isVisible: boolean = false): HTMLDivElement {
     const separatorEl = document.createElement("div");
     separatorEl.classList.add("ui-window__content__separator");
     separatorEl.style.height = `${heightPixel}px`;
@@ -25,7 +25,7 @@ export class WindowContent {
   }
 
   // ..
-  addTitle(text: string): HTMLHeadingElement {
+  public addTitle(text: string): HTMLHeadingElement {
     const titleEl = document.createElement("h3");
     titleEl.classList.add("ui-window__content__heading-title");
     titleEl.textContent = text;
@@ -35,7 +35,7 @@ export class WindowContent {
   }
 
   // ..
-  addSection(text: string): HTMLHeadingElement {
+  public addSection(text: string): HTMLHeadingElement {
     const sectionEl = document.createElement("h4");
     sectionEl.classList.add("ui-window__content__heading-section");
     sectionEl.textContent = text;
@@ -45,7 +45,7 @@ export class WindowContent {
   }
 
   // ..
-  addText(text: string, color?: string, fontWeight?: FontWeight, id?: string): HTMLParagraphElement {
+  public addText(text: string, color?: string, fontWeight?: FontWeight, id?: string): HTMLParagraphElement {
     const textEl = document.createElement("p");
     textEl.classList.add("ui-window__content__text");
     textEl.textContent = text;
@@ -58,7 +58,7 @@ export class WindowContent {
   }
 
   // ..
-  addLink(text: string, url: string, id?: string): HTMLParagraphElement {
+  public addLink(text: string, url: string, id?: string): HTMLParagraphElement {
     const linkEl = document.createElement("p");
     linkEl.classList.add("ui-window__content__text");
     if (id != null) linkEl.id = id;
@@ -74,7 +74,7 @@ export class WindowContent {
   }
 
   // ..
-  addBulletedList(items: string[]): HTMLUListElement {
+  public addBulletedList(items: string[]): HTMLUListElement {
     const bulletEl = document.createElement("ul");
     bulletEl.classList.add("ui-window__content");
 
@@ -90,7 +90,7 @@ export class WindowContent {
   }
 
   // ..
-  addNumberedList(items: string[]): HTMLOListElement {
+  public addNumberedList(items: string[]): HTMLOListElement {
     const numEl = document.createElement("ol");
     numEl.classList.add("ui-window__content");
 
@@ -106,7 +106,7 @@ export class WindowContent {
   }
 
   // ..
-  addImage(size: Size, src: string, alt: string, id?: string): HTMLImageElement {
+  public addImage(size: Size, src: string, alt: string, id?: string): HTMLImageElement {
     const imageEl = document.createElement("img");
     imageEl.classList.add("ui-window__content__image");
     imageEl.src = src;
@@ -120,7 +120,7 @@ export class WindowContent {
   }
 
   // ..
-  addSlider(label: string, minRange: number, maxRange: number, defaultValue: number, steps: number, id?: string): HTMLDivElement {
+  public addSlider(label: string, minRange: number, maxRange: number, defaultValue: number, steps: number, id?: string): HTMLDivElement {
     const sliderEl = document.createElement("div");
     sliderEl.classList.add("ui-window__helper__flex-row");
     if (id != null) sliderEl.id = id;
@@ -165,7 +165,7 @@ export class WindowContent {
   }
 
   // ..
-  addTextInput(label: string, placeholder: string, initialValue: string, id?: string): HTMLDivElement {
+  public addTextInput(label: string, placeholder: string, initialValue: string, id?: string): HTMLDivElement {
     const textInputEl = document.createElement("div");
     textInputEl.classList.add("ui-window__content__text-input__wrapper");
 
@@ -188,7 +188,7 @@ export class WindowContent {
   }
 
   // ..
-  addButton(text: string, id?: string, bgColor?: string): HTMLButtonElement {
+  public addButton(text: string, id?: string, bgColor?: string): HTMLButtonElement {
     const buttonEl = document.createElement("button");
     buttonEl.classList.add("ui-window__content__button");
     buttonEl.textContent = text;
@@ -200,7 +200,7 @@ export class WindowContent {
   }
 
   // ..
-  addDropdownButton(
+  public addDropdownButton(
     label: string,
     options: string[],
     selectedOption: Index = 0,
@@ -315,7 +315,7 @@ export class WindowContent {
   }
 
   // ..
-  addToggleSwitch(label: string, initialState: boolean = false, id?: string): HTMLDivElement {
+  public addToggleSwitch(label: string, initialState: boolean = false, id?: string): HTMLDivElement {
     const toggleRowEl = document.createElement("div");
     toggleRowEl.classList.add("ui-window__helper__flex-row");
 

@@ -1,5 +1,5 @@
 import type { BoggedState } from "../core/bogged_state";
-import { WindowManager } from "./window_manager";
+import { WindowManager, WindowType } from "./window_manager";
 import type { ParticleMap } from "../types";
 
 export class InputManager {
@@ -13,18 +13,17 @@ export class InputManager {
   private activePointerId: number | null = null;
   private isAppMenuOpen: boolean = false;
 
-  constructor(boggedStateInstance: BoggedState, vieportEl: HTMLDivElement, canvasEl: HTMLCanvasElement, particleData: ParticleMap) {
+  constructor(boggedStateInstance: BoggedState, vieportEl: HTMLDivElement, canvasEl: HTMLCanvasElement) {
     // Initialise fields
     this.boggedState = boggedStateInstance;
-    this.windowManager = new WindowManager(boggedStateInstance, vieportEl);
+    this.windowManager = new WindowManager(vieportEl, boggedStateInstance);
     this.viewport = vieportEl;
     this.canvas = canvasEl;
 
     // Particle palette is openned at startup
-    this.windowManager.addPaletteWindow(particleData);
 
     // Bind inputs to DOM elements
-    this.bindAppMenuEvents();
+    this.initAppMenu();
     this.bindCanvasEvents();
 
     // Disable right click context menu on viewport
@@ -33,107 +32,125 @@ export class InputManager {
     });
 
     // Global listener for closing any opened app menu
-    document.addEventListener("click", (event) => {
-      // App menu is closed, return
-      if (!this.isAppMenuOpen) {
-        return;
-      }
-
-      // Close app menu if the click occured outside the app menu's item
-      const isClickOnMenubar = (event.target as HTMLElement)?.closest(".app-menu__menu-item");
-      if (!isClickOnMenubar) {
-        const openDropdowns = document.querySelectorAll(".app-menu__dropdown[style*='block']");
-        openDropdowns.forEach((el) => {
-          (el as HTMLDivElement).style.display = "none";
-        });
+    document.addEventListener("click", () => {
+      const openDropdown = document.querySelector(".app-menu__dropdown.is-open");
+      if (openDropdown instanceof HTMLDivElement) {
+        openDropdown.classList.remove("is-open");
         this.isAppMenuOpen = false;
       }
     });
+
+    // Open palette window on startup
+    this.windowManager.openWindow(WindowType.Palette);
   }
 
   // --------- Helper Functions ---------
 
-  // Bind app menu event lisnteners
-  private bindAppMenuEvents() {
-    const createAppMenuDropBar = (itemEl: HTMLDivElement, itemList: string[]) => {
-      const listEl = document.createElement("div");
-      listEl.classList.add("app-menu__dropdown");
-      listEl.style.display = "none";
-      itemList.forEach((text) => {
-        const el = document.createElement("div");
-        el.classList.add("app-menu__dropdown-item");
+  // Initiale app menu and it's dropdowns and populate them
+  private initAppMenu() {
+    const menuData = [
+      { id: "bog-menu-item", items: ["Settings", "Quit"] },
+      { id: "world-item", items: ["Particle Palette"] },
+      { id: "debug-item", items: ["Quick Look", "Stats", "Debug Menu"] },
+      { id: "help-item", items: ["About", "Report Issue"] },
+    ];
 
-        // ! temp: ..
-        if (text !== "About" && text !== "Report Issue") {
-          el.classList.add("is-disabled");
-        }
+    // Create dropdown menus and bind events for appmenu buttons
+    const dropdownItems: HTMLDivElement[] = [];
+    for (let i = 0; i < menuData.length; i++) {
+      const data = menuData[i];
+      if (!data) continue;
 
-        el.textContent = text;
-        listEl.appendChild(el);
+      // Get menu button elements
+      const menuEl = document.getElementById(data.id);
+      if (!(menuEl instanceof HTMLDivElement)) continue;
+
+      // Create dropdown for this menu
+      const dropdown = this.createAppMenuDropdowns(menuEl, data.items);
+      dropdown.items.forEach((item) => {
+        dropdownItems.push(item);
       });
-      itemEl.appendChild(listEl);
-      return listEl;
-    };
-    const createAppMenuListeners = (itemEl: HTMLDivElement, listEl: HTMLDivElement) => {
-      itemEl.addEventListener("click", (event) => {
+
+      // Bind event listeners for this menu
+      const dropdownMenu = dropdown.menu;
+      menuEl.addEventListener("click", (event) => {
         event.stopPropagation();
-        // Close all other dropdowns
-        const currentlyOpen = document.querySelector(".app-menu__dropdown[style*='block']");
-        if (currentlyOpen && currentlyOpen !== listEl) {
-          (currentlyOpen as HTMLDivElement).style.display = "none";
+
+        // Close any previously openned dropdown menu
+        const openDropdown = document.querySelector(".app-menu__dropdown.is-open");
+        if (openDropdown && openDropdown !== dropdownMenu) {
+          openDropdown.classList.remove("is-open");
         }
+
         // Toggle this dropdown
-        if (listEl.style.display === "block") {
-          listEl.style.display = "none";
-          this.isAppMenuOpen = false;
-        } else {
-          listEl.style.display = "block";
-          this.isAppMenuOpen = true;
-        }
+        const isOpen = dropdownMenu.classList.toggle("is-open");
+        this.isAppMenuOpen = isOpen;
       });
-      itemEl.addEventListener("mouseenter", () => {
-        if (this.isAppMenuOpen && listEl.style.display !== "block") {
-          const currentlyOpen = document.querySelector(".app-menu__dropdown[style*='block']");
-          if (currentlyOpen && currentlyOpen !== listEl) {
-            (currentlyOpen as HTMLDivElement).style.display = "none";
+      menuEl.addEventListener("mouseenter", () => {
+        if (this.isAppMenuOpen && !dropdownMenu.classList.contains("is-open")) {
+          // Close any previously openned dropdown menu
+          const openDropdown = document.querySelector(".app-menu__dropdown.is-open");
+          if (openDropdown && openDropdown !== dropdownMenu) {
+            openDropdown.classList.remove("is-open");
           }
+
           // Open this dropdown
-          listEl.style.display = "block";
+          dropdownMenu.classList.add("is-open");
         }
       });
-    };
-    const processAppMenuItem = (id: string, items: string[]) => {
-      const itemEl = document.getElementById(id);
-      if (itemEl instanceof HTMLDivElement) {
-        const dropDownEl = createAppMenuDropBar(itemEl, items);
-        createAppMenuListeners(itemEl, dropDownEl);
+    }
 
-        // ! temp: ..
-        if (id === "help-item") {
-          const dropdownItems = dropDownEl.querySelectorAll(".app-menu__dropdown-item");
-          dropdownItems.forEach((itemEl: Element) => {
-            const text = itemEl.textContent;
-            itemEl.addEventListener("click", (event) => {
-              event.stopPropagation();
-              dropDownEl.style.display = "none";
-              this.isAppMenuOpen = false;
+    // Bind event listeners for dropdown items
+    dropdownItems.forEach((itemEl) => {
+      const text = itemEl.textContent;
 
-              if (text === "About") {
-                window.open("https://github.com/misuldansin/bog-engine/", "_blank");
-              } else if (text === "Report Issue") {
-                window.open("https://github.com/misuldansin/bog-engine/issues/new", "_blank");
-              }
-            });
+      switch (text) {
+        case "Particle Palette":
+          itemEl.classList.remove("is-disabled");
+          itemEl.addEventListener("click", () => {
+            this.windowManager.openWindow(WindowType.Palette);
           });
-        }
+          break;
+        case "Stats":
+          itemEl.classList.remove("is-disabled");
+          itemEl.addEventListener("click", () => {
+            this.windowManager.openWindow(WindowType.DebugStats);
+          });
+          break;
+        case "About":
+          itemEl.classList.remove("is-disabled");
+          itemEl.addEventListener("click", () => {
+            window.open("https://github.com/misuldansin/bog-engine/", "_blank");
+          });
+          break;
+        case "Report Issue":
+          itemEl.classList.remove("is-disabled");
+          itemEl.addEventListener("click", () => {
+            window.open("https://github.com/misuldansin/bog-engine/issues/new", "_blank");
+          });
+          break;
+        default:
+          break;
       }
-    };
+    });
+  }
 
-    processAppMenuItem("bog-menu-item", ["Settings", "Quit"]);
-    processAppMenuItem("file-item", ["Save", "Load", "Exit"]);
-    processAppMenuItem("edit-item", ["Preferences", "Undo", "Redo"]);
-    processAppMenuItem("view-item", ["Reset View"]);
-    processAppMenuItem("help-item", ["About", "Report Issue"]);
+  // Creates app menu dropdown menus and populates it's items
+  private createAppMenuDropdowns(buttonEl: HTMLDivElement, itemNames: string[]): { menu: HTMLDivElement; items: HTMLDivElement[] } {
+    const menuEl = document.createElement("div");
+    menuEl.classList.add("app-menu__dropdown");
+
+    // Create dropmenu items and append them to the menu element
+    let items: HTMLDivElement[] = [];
+    itemNames.forEach((name) => {
+      const itemEl = document.createElement("div");
+      itemEl.classList.add("app-menu__dropdown-item", "is-disabled");
+      itemEl.textContent = name;
+      menuEl.appendChild(itemEl);
+      items.push(itemEl);
+    });
+    buttonEl.appendChild(menuEl);
+    return { menu: menuEl, items: items };
   }
 
   // Bind canvas related event listeners

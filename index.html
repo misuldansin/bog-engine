@@ -13,10 +13,43 @@
 
   <body>
     <div id="desktop">
+      <!-- Top Bar -->
       <div id="menu-bar">
-        <div id="app-menu" class="app-bar"></div>
+        <!-- App Icon -->
+        <div id="bog-menu">
+          <div id="bog-menu-item" class="app-menu__menu-item" data-menu="bog-engine">
+            <img class="app-menu__logo-image" src="assets/icons/bog-logo.svg" alt="Game Logo" />
+            <span>Bog engine</span>
+          </div>
+        </div>
+
+        <!-- App menu -->
+        <div id="app-menu">
+          <div id="world-item" class="app-menu__menu-item" data-menu="world">World</div>
+          <div id="debug-item" class="app-menu__menu-item" data-menu="debug">Debug</div>
+          <div id="help-item" class="app-menu__menu-item" data-menu="help">Help</div>
+        </div>
+
+        <!-- Center bar -->
+        <div id="center-menu">
+          <div class="center-menu__text">Scene: new_scene.sim</div>
+        </div>
+
+        <!-- Controls -->
+        <!-- <div id="controls-menu">
+          <button id="play-pause-button" class="controls-menu__button">
+            <img class="controls-menu__button__icon" src="assets/icons/electronics.svg" alt="play-pause" />
+          </button>
+          <button id="step-button" class="controls-menu__button">
+            <img class="controls-menu__button__icon" src="assets/icons/liquid.svg" alt="Step" />
+          </button>
+          <button id="clea-button" class="controls-menu__button">
+            <img class="controls-menu__button__icon" src="assets/icons/sand.svg" alt="Clear" />
+          </button>
+        </div> -->
       </div>
 
+      <!-- Simulation Area -->
       <div id="viewport">
         <canvas id="render-surface" class="canvas"></canvas>
       </div>

@@ -1,243 +1,124 @@
 import type { Index, Size, Vector2, ContentBarOrientation } from "../types";
 
 export class Window {
+  // Window Properties
   static currentZIndex = 100;
+  public title: string;
+  public position: Vector2;
+  public size: Size;
+  public maxSize: Size;
+  public isVisible: boolean;
 
-  // Properties
-  title: string;
-  position: Vector2;
-  size: Size;
-  maxSize: Size;
+  // Window DOM Elements
+  private hostEl: HTMLDivElement;
+  private windowEl: HTMLDivElement;
+  private titlebarEl: HTMLDivElement;
+  private controlBarEl: HTMLDivElement;
+  private contentWrapperEl: HTMLDivElement;
+  private contentBarEl: HTMLDivElement;
+  private contentContainerEl: HTMLDivElement;
 
-  contentBarButtons: HTMLButtonElement[];
-  contents: HTMLDivElement[];
-  selectedContent: number;
-  contentBarOrientation: ContentBarOrientation;
-
-  // DOM elements
-  hostEl: HTMLDivElement;
-  windowEl!: HTMLDivElement;
-  titlebarEl!: HTMLDivElement;
-  closeButtonEl!: HTMLButtonElement;
-  contentWrapperEl!: HTMLDivElement;
-  contentBarEl!: HTMLDivElement;
-  contentContainer!: HTMLDivElement;
+  private contents: HTMLDivElement[] = [];
+  private contentBarButtons: HTMLButtonElement[] = [];
+  private selectedContent: number = 0;
+  private contentBarOrientation: ContentBarOrientation = "left";
 
   // Event listener states and flags
-  _isFocused: boolean;
-  _isDragging: boolean;
-  _dragOffset: Vector2;
+  private isFocused: boolean = false;
+  private isDragging: boolean = false;
+  private dragOffset: Vector2 = { x: 0, y: 0 };
 
   constructor(host: HTMLDivElement, title: string, position: Vector2, size: Size, maxSize: Size) {
-    // Set window properties
     this.title = title;
     this.position = position;
     this.size = size;
     this.maxSize = maxSize;
+    this.isVisible = false;
 
-    this.contentBarButtons = [];
-    this.contents = [];
-    this.selectedContent = 0;
-    this.contentBarOrientation = "left";
-
-    // Set dependencies
     this.hostEl = host;
+    this.windowEl = this.createWindowElement(position, size, maxSize, Window.currentZIndex);
+    this.titlebarEl = this.createTitlebarElement(title);
+    this.controlBarEl = this.createControlBarElement();
+    this.contentWrapperEl = this.createContentWrapperElement();
+    this.contentBarEl = this.createContentBarElement();
+    this.contentContainerEl = this.createContentContainerElement();
 
-    // Create window DOM elements
-    this._initWindow(title, position);
+    // Assemble the window's content
+    this.hostEl.appendChild(this.windowEl);
+    this.titlebarEl.appendChild(this.controlBarEl);
+    this.windowEl.appendChild(this.titlebarEl);
+    this.contentWrapperEl.appendChild(this.contentBarEl);
+    this.contentWrapperEl.appendChild(this.contentContainerEl);
+    this.windowEl.appendChild(this.contentWrapperEl);
 
-    // Set startup values for event listener states and flags
-    this._isFocused = false;
-    this._isDragging = false;
-    this._dragOffset = { x: 0, y: 0 };
-
-    // And add event listeners
-    this._addEventListener();
+    // Add event listener to update window's position
+    window.addEventListener("resize", this.onViewportResize);
   }
 
   destroy() {
-    this._closeWindow();
-  }
+    // Remove any global event listeners
+    window.removeEventListener("resize", this.onViewportResize);
 
-  // ------ Helper Functions ------
+    // Remove window's own event listeners
+    this.windowEl.removeEventListener("mousedown", this.onWindowFocus);
+    this.titlebarEl.removeEventListener("pointerdown", this.onPointerDown);
+    this.titlebarEl.removeEventListener("pointermove", this.onPointerMove);
+    this.titlebarEl.removeEventListener("pointerup", this.onPointerUp);
 
-  // ..
-  _initWindow(title: string, position: Vector2) {
-    // Create root window element and assign it to host
-    this.windowEl = document.createElement("div");
-    this.windowEl.classList.add("ui-window");
-    this.windowEl.style.left = `${position.x}px`;
-    this.windowEl.style.top = `${position.y}px`;
-    this.windowEl.style.width = `${this.size.width}px`;
-    this.windowEl.style.height = `${this.size.height}px`;
-    this.windowEl.style.maxWidth = `${this.maxSize.width}px`;
-    this.windowEl.style.maxHeight = `${this.maxSize.height}px`;
-    this.windowEl.style.zIndex = Window.currentZIndex.toString();
-    this.hostEl.appendChild(this.windowEl);
-
-    // Create title bar element
-    this.titlebarEl = document.createElement("div");
-    this.titlebarEl.classList.add("ui-window__title-bar");
-    const titleBarSpanEl = document.createElement("span");
-    titleBarSpanEl.classList.add("ui-window__title");
-    titleBarSpanEl.textContent = title;
-    this.titlebarEl.appendChild(titleBarSpanEl);
-    this.windowEl.appendChild(this.titlebarEl);
-
-    // Create close button
-    const buttonWrapperEl = document.createElement("div");
-    buttonWrapperEl.classList.add("ui-window__title-bar__button__wrapper");
-    this.closeButtonEl = document.createElement("button");
-    this.closeButtonEl.classList.add("ui-window__title-bar__button");
-    const closeIcon = document.createElement("img");
-    closeIcon.src = "./assets/icons/close.svg";
-    this.closeButtonEl.appendChild(closeIcon);
-    buttonWrapperEl.appendChild(this.closeButtonEl);
-    this.titlebarEl.appendChild(buttonWrapperEl);
-
-    // Create content wrapper
-    this.contentWrapperEl = document.createElement("div");
-    this.contentWrapperEl.classList.add("ui-window__content__wrapper", `${"left"}`);
-    this.windowEl.appendChild(this.contentWrapperEl);
-
-    // Create content bar and content container
-    this.contentBarEl = document.createElement("div");
-    this.contentBarEl.classList.add("ui-window__content-bar");
-    this.contentWrapperEl.appendChild(this.contentBarEl);
-
-    this.contentContainer = document.createElement("div");
-    this.contentContainer.classList.add("ui-window__content-container");
-    this.contentWrapperEl.appendChild(this.contentContainer);
-
-    // ! temp: mockup                 8 + (28 * i + 1)
-    const tempDivEl = document.createElement("div");
-    tempDivEl.style.position = "absolute";
-    tempDivEl.style.left = "40px";
-    tempDivEl.style.borderRadius = "0.6rem";
-  }
-
-  // ..
-  _addEventListener() {
-    // Add event listener for on window focus
-    this.windowEl.addEventListener("mousedown", this._onFocus);
-
-    // Add event listeners for window drag
-    this.titlebarEl.addEventListener("pointerdown", this._onPointerDown);
-    this.titlebarEl.addEventListener("pointermove", this._onPointerMove);
-    this.titlebarEl.addEventListener("pointerup", this._onPointerUp);
-
-    // Add even listener for close button
-    this.closeButtonEl.addEventListener("click", this._onCloseButtonClick);
-    this.closeButtonEl.addEventListener("pointerdown", this._stopDragPropagation);
-
-    // Add event listener for viewport resize
-    window.addEventListener("resize", this._onViewportResize);
-  }
-  _onFocus = () => {
-    if (!this._isFocused) {
-      Window.currentZIndex++;
-      this.windowEl.style.zIndex = Window.currentZIndex.toString();
-    }
-  };
-  _onPointerDown = (e: PointerEvent) => {
-    e.stopPropagation();
-    this._onFocus();
-
-    if (e.button === 0) {
-      this.titlebarEl.setPointerCapture(e.pointerId);
-      const rect = this.windowEl.getBoundingClientRect();
-      this._dragOffset.x = e.clientX - rect.left;
-      this._dragOffset.y = e.clientY - rect.top;
-      this._isDragging = true;
-    } else {
-      this._isDragging = false;
-    }
-  };
-  _onPointerUp = (e: PointerEvent) => {
-    if (this._isDragging) {
-      this.titlebarEl.releasePointerCapture(e.pointerId);
-      this._isDragging = false;
-    }
-  };
-  _onPointerMove = (e: PointerEvent) => {
-    if (this._isDragging) {
-      const hostRect = this.hostEl.getBoundingClientRect();
-      const newX = e.clientX - this._dragOffset.x - hostRect.left;
-      const newY = e.clientY - this._dragOffset.y - hostRect.top;
-      this._moveWindow({ x: newX, y: newY });
-    }
-  };
-  _onCloseButtonClick = (e: PointerEvent) => {
-    this._closeWindow();
-  };
-  _onViewportResize = () => {
-    this._snapWindowBacc();
-  };
-  _stopDragPropagation = (e: PointerEvent) => {
-    e.stopPropagation();
-  };
-
-  // ------ Window Core Functions ------
-
-  // ..
-  _closeWindow() {
-    window.removeEventListener("resize", this._onViewportResize);
-    this.titlebarEl.removeEventListener("pointerdown", this._onPointerDown);
-    this.titlebarEl.removeEventListener("pointermove", this._onPointerMove);
-    this.titlebarEl.removeEventListener("pointerup", this._onPointerUp);
-    this.windowEl.removeEventListener("mousedown", this._onFocus);
-
+    // Remove window from it's host
     if (this.windowEl && this.windowEl.parentElement) {
       this.windowEl.parentElement.removeChild(this.windowEl);
     }
 
-    this.windowEl! = null as any;
-    this.titlebarEl != (null as any);
-    this.closeButtonEl != (null as any);
-    this.contentWrapperEl != (null as any);
-    this.contentBarEl != (null as any);
-    this.contentContainer != (null as any);
+    // Clear references
+    this.windowEl = null as any;
+    this.titlebarEl = null as any;
+    this.controlBarEl = null as any;
+    this.contentWrapperEl = null as any;
+    this.contentBarEl = null as any;
+    this.contentContainerEl = null as any;
   }
 
-  // ..
-  _moveWindow(newPosition: Vector2) {
+  // ========================================================
+  // ---------------- Window Core Functions -----------------
+
+  public setVisibility(isVisible: boolean) {
+    if (isVisible) {
+      this.windowEl.classList.add("is-visible");
+    } else {
+      this.windowEl.classList.remove("is-visible");
+    }
+    this.isVisible = isVisible;
+  }
+
+  public setContentBarVisibility(isVisible: boolean) {
+    if (isVisible) {
+      this.contentBarEl.classList.add("is-visible");
+    } else {
+      this.contentBarEl.classList.remove("is-visible");
+    }
+  }
+
+  public getContentBarButtonAtIndex(index: Index): HTMLButtonElement | undefined {
+    return this.contentBarButtons[index];
+  }
+
+  public setPosition(position: Vector2) {
     const windowWidth = this.windowEl.offsetWidth;
     const windowHeight = this.windowEl.offsetHeight;
-
     const hostWidth = this.hostEl.offsetWidth;
     const hostHeight = this.hostEl.offsetHeight;
-    const finalX = Math.max(0, Math.min(newPosition.x, hostWidth - windowWidth));
-    const finalY = Math.max(0, Math.min(newPosition.y, hostHeight - windowHeight));
+
+    // Clamp the new position to the host element's bounds
+    const finalX = Math.max(0, Math.min(position.x, hostWidth - windowWidth));
+    const finalY = Math.max(0, Math.min(position.y, hostHeight - windowHeight));
 
     // 3. Apply the clamped position
     this.windowEl.style.left = `${finalX}px`;
     this.windowEl.style.top = `${finalY}px`;
   }
 
-  // ..
-  _snapWindowBacc() {
-    const windowWidth = this.windowEl.offsetWidth;
-    const windowHeight = this.windowEl.offsetHeight;
-    const hostWidth = this.hostEl.offsetWidth;
-    const hostHeight = this.hostEl.offsetHeight;
-    const maxX = Math.max(0, hostWidth - windowWidth);
-    const maxY = Math.max(0, hostHeight - windowHeight);
-
-    const currentX = this.windowEl.offsetLeft;
-    const currentY = this.windowEl.offsetTop;
-    const newX = Math.max(0, Math.min(currentX, maxX));
-    const newY = Math.max(0, Math.min(currentY, maxY));
-
-    if (newX !== currentX || newY !== currentY) {
-      this.windowEl.style.left = `${newX}px`;
-      this.windowEl.style.top = `${newY}px`;
-    }
-  }
-
-  // ------ Public Methods ------
-
-  // ..
-  setContentOrientation(orientation: ContentBarOrientation) {
+  public setContentBarOrientation(orientation: ContentBarOrientation) {
     // Remove old orientation from the wrapper
     this.contentWrapperEl.classList.remove("top", "bottom", "left", "right");
 
@@ -248,8 +129,7 @@ export class Window {
     this.contentBarOrientation = orientation;
   }
 
-  // ..
-  addNewContent(content: HTMLDivElement, name: string, icon: string) {
+  public addNewContent(content: HTMLDivElement, name: string, icon: string) {
     let newIndex: number = this.contents.length;
 
     // Hide this content by default
@@ -259,7 +139,7 @@ export class Window {
 
     // Assign properties and add it to the content container
     content.id = "container-" + newIndex;
-    this.contentContainer.appendChild(content);
+    this.contentContainerEl.appendChild(content);
 
     // Create new content bar button for this content
     const newButtonEl = document.createElement("button");
@@ -277,18 +157,12 @@ export class Window {
     // Bind listener for this button
     newButtonEl.addEventListener("click", () => this.displayContentAtIndex(newIndex));
 
-    // Show content bar if more than 1 content exists for this window
-    if (this.contents.length > 0) {
-      this.contentBarEl.style.display = "flex";
-    }
-
-    //
+    // Store references
     this.contentBarButtons.push(newButtonEl);
     this.contents.push(content);
   }
 
-  // ..
-  displayContent(contentToDisplay: HTMLDivElement) {
+  public displayContent(contentToDisplay: HTMLDivElement) {
     const contents = this.contents;
     for (let i = 0; i < contents.length; i++) {
       const content = contents[i];
@@ -317,33 +191,14 @@ export class Window {
     }
   }
 
-  displayContentAtIndex(index: Index) {
-    // Get the content to display
+  public displayContentAtIndex(index: Index) {
     const contentToDisplay = this.contents[index];
-    if (!contentToDisplay) {
-      return;
+    if (contentToDisplay) {
+      this.displayContent(contentToDisplay);
     }
-
-    // Hide all contents
-    this.contents.forEach((item, i) => {
-      item.style.display = "none";
-    });
-
-    // Show this content
-    contentToDisplay.style.display = "";
-
-    // Assign new selected content index
-    this.selectedContent = index;
-
-    // Update content bar buttons
-    this.contentBarButtons.forEach((btn, i) => {
-      if (i === index) btn.classList.add("active");
-      else btn.classList.remove("active");
-    });
   }
 
-  // ..
-  addContentBarSeparator(isSpacer: boolean = false): HTMLDivElement {
+  public addContentBarSeparator(isSpacer: boolean = false): HTMLDivElement {
     const separatorEl = document.createElement("div");
     separatorEl.classList.add("ui-window__content-bar__separator");
 
@@ -354,4 +209,151 @@ export class Window {
     this.contentBarEl.appendChild(separatorEl);
     return separatorEl;
   }
+
+  // ========================================================
+  // ------------------- Helper Functions -------------------
+
+  private createWindowElement(position: Vector2, size: Size, maxSize: Size, zIndex: number): HTMLDivElement {
+    const windowEl = document.createElement("div");
+    windowEl.classList.add("ui-window");
+
+    // Set properties
+    windowEl.style.left = `${position.x}px`;
+    windowEl.style.top = `${position.y}px`;
+    windowEl.style.width = `${size.width}px`;
+    windowEl.style.height = `${size.height}px`;
+    windowEl.style.maxWidth = `${maxSize.width}px`;
+    windowEl.style.maxHeight = `${maxSize.height}px`;
+    windowEl.style.zIndex = zIndex.toString();
+
+    // Add listeners
+    windowEl.addEventListener("mousedown", this.onWindowFocus);
+
+    return windowEl;
+  }
+
+  private createTitlebarElement(title: string): HTMLDivElement {
+    const titlebarEl = document.createElement("div");
+    titlebarEl.classList.add("ui-window__title-bar");
+
+    // Create span element for titlebar
+    const titleBarSpanEl = document.createElement("span");
+    titleBarSpanEl.classList.add("ui-window__title");
+    titleBarSpanEl.textContent = title;
+    titlebarEl.appendChild(titleBarSpanEl);
+
+    // Add listeners
+    titlebarEl.addEventListener("pointerdown", this.onPointerDown);
+    titlebarEl.addEventListener("pointermove", this.onPointerMove);
+    titlebarEl.addEventListener("pointerup", this.onPointerUp);
+
+    return titlebarEl;
+  }
+
+  private createControlBarElement(): HTMLDivElement {
+    const controlBarEl = document.createElement("div");
+    controlBarEl.classList.add("ui-window__title-bar__button__wrapper");
+
+    // Create close button and add it to the control bar
+    const closeButtonEl = document.createElement("button");
+    closeButtonEl.classList.add("ui-window__title-bar__button");
+    const closeIcon = document.createElement("img");
+    closeIcon.src = "./assets/icons/close.svg";
+    closeButtonEl.appendChild(closeIcon);
+    controlBarEl.appendChild(closeButtonEl);
+
+    // Add listeners
+    closeButtonEl.addEventListener("pointerdown", (e: PointerEvent) => {
+      e.stopPropagation();
+    });
+    closeButtonEl.addEventListener("click", () => {
+      this.setVisibility(false);
+    });
+
+    return controlBarEl;
+  }
+
+  private createContentWrapperElement(): HTMLDivElement {
+    const contentWrapperEl = document.createElement("div");
+    contentWrapperEl.classList.add("ui-window__content__wrapper", `${"left"}`);
+    return contentWrapperEl;
+  }
+
+  private createContentBarElement(): HTMLDivElement {
+    const contentBarEl = document.createElement("div");
+    contentBarEl.classList.add("ui-window__content-bar");
+    return contentBarEl;
+  }
+
+  private createContentContainerElement(): HTMLDivElement {
+    const contentContainerEl = document.createElement("div");
+    contentContainerEl.classList.add("ui-window__content-container");
+    return contentContainerEl;
+  }
+
+  private snapWindowBacc() {
+    const windowWidth = this.windowEl.offsetWidth;
+    const windowHeight = this.windowEl.offsetHeight;
+    const hostWidth = this.hostEl.offsetWidth;
+    const hostHeight = this.hostEl.offsetHeight;
+    const maxX = Math.max(0, hostWidth - windowWidth);
+    const maxY = Math.max(0, hostHeight - windowHeight);
+
+    const currentX = this.windowEl.offsetLeft;
+    const currentY = this.windowEl.offsetTop;
+    const newX = Math.max(0, Math.min(currentX, maxX));
+    const newY = Math.max(0, Math.min(currentY, maxY));
+
+    if (newX !== currentX || newY !== currentY) {
+      this.windowEl.style.left = `${newX}px`;
+      this.windowEl.style.top = `${newY}px`;
+    }
+  }
+
+  // ========================================================
+  // --------------- Event Listener Functions ---------------
+
+  private onViewportResize = () => {
+    this.snapWindowBacc();
+  };
+
+  private onWindowFocus = () => {
+    if (!this.isFocused) {
+      Window.currentZIndex++;
+      this.windowEl.style.zIndex = Window.currentZIndex.toString();
+    }
+  };
+
+  private onPointerDown = (e: PointerEvent) => {
+    e.stopPropagation();
+
+    // Focus this window
+    this.onWindowFocus();
+
+    if (e.button === 0) {
+      this.titlebarEl.setPointerCapture(e.pointerId);
+      const rect = this.windowEl.getBoundingClientRect();
+      this.dragOffset.x = e.clientX - rect.left;
+      this.dragOffset.y = e.clientY - rect.top;
+      this.isDragging = true;
+    } else {
+      this.isDragging = false;
+    }
+  };
+
+  private onPointerUp = (e: PointerEvent) => {
+    if (this.isDragging) {
+      this.titlebarEl.releasePointerCapture(e.pointerId);
+      this.isDragging = false;
+    }
+  };
+
+  private onPointerMove = (e: PointerEvent) => {
+    if (this.isDragging) {
+      const hostRect = this.hostEl.getBoundingClientRect();
+      const newX = e.clientX - this.dragOffset.x - hostRect.left;
+      const newY = e.clientY - this.dragOffset.y - hostRect.top;
+      this.setPosition({ x: newX, y: newY });
+    }
+  };
 }

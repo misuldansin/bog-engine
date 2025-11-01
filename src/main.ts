@@ -26,20 +26,21 @@ async function initialize(): Promise<void> {
     }
 
     // Initialise global state
-    const boggedState = new BoggedState(settings);
+    const boggedState = new BoggedState(settings, particleData);
 
     // Initialise Renderer
     const renderer = new Renderer(boggedState, canvas);
 
     // Initialise Input Manager
-    const inputManager = new InputManager(boggedState, viewport, canvas, particleData);
+    const inputManager = new InputManager(boggedState, viewport, canvas);
 
     // Initialise Debugger
     const debug = new Debug(boggedState, viewport);
     debug.enableDebug(false);
+    boggedState.debugInstance = debug;
 
     // Initialise Engine
-    const engine = new Engine(boggedState, renderer, inputManager, debug, particleData);
+    const engine = new Engine(boggedState, renderer, inputManager, debug);
 
     // Start the engine
     engine.start();

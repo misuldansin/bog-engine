@@ -25,28 +25,22 @@ export class Engine {
   private physicsInterval: number;
 
   // Time tracking variables
-  private lastFrameTime: number | null = null;
+  private lastFrameTime: number = 0;
+  tickCount: number = 0;
   private accumulator: number = 0;
-  public tickCount: number = 0;
 
   // ! temp: ..
   private clearDirtyDelta = 0;
-  private clearDirtyFreq = 60;
+  private clearDirtyFreq = 2;
   private neighborKeys = Object.keys(NEIGHBOR) as Array<keyof typeof NEIGHBOR>;
 
-  constructor(
-    boggedStateInstance: BoggedState,
-    renderInstance: Renderer,
-    inputManagerInstance: InputManager,
-    debugInstance: Debug,
-    particleData: ParticleMap
-  ) {
-    this.boggedState = boggedStateInstance;
+  constructor(stateInstance: BoggedState, renderInstance: Renderer, inputManagerInstance: InputManager, debugInstance: Debug) {
+    this.boggedState = stateInstance;
     this.renderer = renderInstance;
     this.inputManager = inputManagerInstance;
     this.debug = debugInstance;
 
-    this.currentGrid = new Grid(this.boggedState.gameWidth, this.boggedState.gameHeight, particleData);
+    this.currentGrid = new Grid(this.boggedState.gameWidth, this.boggedState.gameHeight, this.boggedState.particleData);
     this.particlesProcessed = new Set();
 
     this.renderInterval = this.boggedState.renderInterval;
@@ -55,10 +49,13 @@ export class Engine {
 
   // ..
   start() {
-    if (!this.isRunning) {
-      this.isRunning = true;
-      this.gameLoop(0);
+    if (this.isRunning) {
+      return;
     }
+
+    this.isRunning = true;
+    this.lastFrameTime = 0;
+    this.animationFrameId = requestAnimationFrame(this.gameLoop);
   }
 
   // ..
@@ -70,62 +67,44 @@ export class Engine {
     }
   }
 
-  // ..
   private gameLoop = (timestamp: number) => {
-    if (!this.isRunning) return;
-
-    // Skip the first frame
-    if (!this.lastFrameTime) {
-      this.lastFrameTime = timestamp;
-      this.animationFrameId = requestAnimationFrame(this.gameLoop);
+    if (!this.isRunning) {
       return;
     }
 
+    if (this.lastFrameTime === 0) {
+      this.lastFrameTime = timestamp;
+    }
     const delta = timestamp - this.lastFrameTime;
     this.lastFrameTime = timestamp;
 
-    // ------ Handle Input ------
+    // ------- Update stats -------
+    this.debug.updateDisplay(timestamp, this);
+
+    // ------- Handle Input -------
     this.handleInput();
 
     // ------ Update Physics ------
     this.accumulator += delta;
     let stepsTaken = 0;
     while (this.accumulator >= this.physicsInterval) {
-      const particlesToUpdate: Particle[] = [];
-      for (const index of this.currentGrid.dirtyParticles) {
-        particlesToUpdate.push(this.currentGrid.data[index]!);
-      }
+      // Step physics
+      this.stepPhysics();
 
-      this.clearDirtyDelta++;
-
-      if (this.clearDirtyDelta > this.clearDirtyFreq) {
-        this.currentGrid.dirtyParticles.clear();
-        this.clearDirtyDelta = 0;
-      }
-
-      const overlayColor: Color = new Uint8ClampedArray([210, 55, 55, 180]) as Color;
-      this.renderer.queueParticles(particlesToUpdate, this.debug.isOverlayEnabled ? overlayColor : undefined);
-
-      // Update physics this frame
-      this.stepPhysics(particlesToUpdate);
-
+      stepsTaken++;
       this.tickCount++;
       this.accumulator -= this.physicsInterval;
 
-      stepsTaken++;
-
       if (stepsTaken > 60) {
         this.accumulator = 0;
+        break;
       }
     }
 
     // ------ Render This Frame ------
-
     this.renderer.renderThisFrame();
 
-    // ------ Update Debug Stats ------
-    this.debug.updateDisplay(timestamp, this);
-
+    // Continue the loop
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
   };
 
@@ -152,7 +131,26 @@ export class Engine {
   }
 
   // ..
-  private stepPhysics(particlesToUpdate: Particle[]) {
+  private stepPhysics() {
+    // Get particles to update this frame
+    let particlesToUpdate: Particle[] = [];
+    for (const index of this.currentGrid.dirtyParticles) {
+      particlesToUpdate.push(this.currentGrid.data[index]!);
+    }
+
+    // ! temp: ..
+    this.clearDirtyDelta++;
+    if (this.clearDirtyDelta > this.clearDirtyFreq) {
+      this.currentGrid.dirtyParticles.clear();
+      this.clearDirtyDelta = 0;
+    }
+
+    // Queue last frame to renderer
+    this.renderer.queueParticles(
+      particlesToUpdate,
+      this.debug.isOverlayEnabled ? (new Uint8ClampedArray([210, 55, 55, 180]) as Color) : undefined
+    );
+
     // Clear particles processed array and current grid's dirty particles to initialise for the next part
     this.particlesProcessed.clear();
 
