@@ -509,9 +509,72 @@ input[type="text"]:focus {
   opacity: 0.3;
 }
 
-/* --- HELPER FLEX ROW --- */
+/* --- PROPERTY PANEL --- */
+.ui-window__content__info-row {
+  font-size: 0.85rem;
+  padding: 4px 0;
+}
+.ui-window__content__info-row label {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.ui-window__content__info-value {
+  color: var(--color-text-primary);
+  font-weight: 700;
+  text-align: right;
+  overflow: hidden;
+}
+
+/* --- DROPPER --- */
+.ui-window__mini-button {
+  font-family: var(--font-family-primary);
+  background-color: var(--color-hover);
+  color: white;
+  font-weight: 600;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 6px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  transition: background-color 0.1s ease-in-out;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ui-window__mini-button:hover {
+  background-color: var(--color-active);
+}
+
+.ui-window__mini-button__icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+.ui-window__mini-button__icon:hover {
+  opacity: 0.8;
+}
+
+/* --- HELPERS --- */
 .ui-window__helper__flex-row {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+.ui-window__helper__spacer {
+  display: flex;
+  flex-grow: 1;
+}
+
+.cursor-picker {
+  cursor: crosshair;
+}
+
+.cursor-dropper {
+  cursor: copy;
 }

@@ -117,6 +117,12 @@ export class InputManager {
             this.windowManager.openWindow(WindowType.DebugStats);
           });
           break;
+        case "Quick Look":
+          itemEl.classList.remove("is-disabled");
+          itemEl.addEventListener("click", () => {
+            this.windowManager.openWindow(WindowType.DebugQuickLook);
+          });
+          break;
         case "About":
           itemEl.classList.remove("is-disabled");
           itemEl.addEventListener("click", () => {

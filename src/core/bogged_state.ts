@@ -1,4 +1,5 @@
 import type { Debug } from "../io/debug";
+import type { Grid } from "../structs/grid";
 import type { GameSettings, ParticleMap } from "../types";
 
 export class BoggedState {
@@ -11,6 +12,7 @@ export class BoggedState {
 
   // Top dogs
   public debugInstance: Debug | null = null;
+  public canvasElement: HTMLCanvasElement | null = null;
 
   readonly brushMaxSize: number;
   readonly brushSensitivity: number;
@@ -24,6 +26,11 @@ export class BoggedState {
   public isLeftMouseButtonDown: boolean = false;
   public isRightMouseButtonDown: boolean = false;
   public isBrushOutlineVisible: boolean = true;
+
+  public isInspectingParticle: boolean = false;
+
+  // ! temp: ..
+  public currentGrid: Grid | null = null;
 
   constructor(settings: GameSettings, particleData: ParticleMap) {
     this.gameWidth = settings.gameWidth;

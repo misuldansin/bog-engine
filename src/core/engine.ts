@@ -45,6 +45,9 @@ export class Engine {
 
     this.renderInterval = this.boggedState.renderInterval;
     this.physicsInterval = this.boggedState.physicsInterval;
+
+    // ! temp: ..
+    this.boggedState.currentGrid = this.currentGrid;
   }
 
   // ..
@@ -109,24 +112,27 @@ export class Engine {
   };
 
   private handleInput() {
-    // Paint Particles
-    if (this.boggedState.isLeftMouseButtonDown) {
-      this.currentGrid.fillCircleAt(
-        Math.floor(this.boggedState.mouseX),
-        Math.floor(this.boggedState.mouseY),
-        this.boggedState.currentBrushSize,
-        this.boggedState.selectedParticleId
-      );
-    }
+    if (this.boggedState.isInspectingParticle) {
+    } else {
+      // Erase Particles
+      if (this.boggedState.isRightMouseButtonDown) {
+        this.currentGrid.fillCircleAt(
+          Math.floor(this.boggedState.mouseX),
+          Math.floor(this.boggedState.mouseY),
+          this.boggedState.currentBrushSize,
+          0
+        );
+      }
 
-    // Erase Particles
-    if (this.boggedState.isRightMouseButtonDown) {
-      this.currentGrid.fillCircleAt(
-        Math.floor(this.boggedState.mouseX),
-        Math.floor(this.boggedState.mouseY),
-        this.boggedState.currentBrushSize,
-        0
-      );
+      // Paint Particles
+      else if (this.boggedState.isLeftMouseButtonDown) {
+        this.currentGrid.fillCircleAt(
+          Math.floor(this.boggedState.mouseX),
+          Math.floor(this.boggedState.mouseY),
+          this.boggedState.currentBrushSize,
+          this.boggedState.selectedParticleId
+        );
+      }
     }
   }
 

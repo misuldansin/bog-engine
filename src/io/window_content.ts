@@ -1,3 +1,4 @@
+import { color } from "../structs/color_utils";
 import type { FontWeight, Index, Size, Vector2 } from "../types";
 
 export class WindowContent {
@@ -55,6 +56,80 @@ export class WindowContent {
 
     this.contentElement.appendChild(textEl);
     return textEl;
+  }
+
+  // ..
+  public addPropertyPanel(label: string, value: string, id?: string): HTMLDivElement {
+    const isHexColor = (hex: string): boolean => {
+      if (hex.length === 0) return false;
+      const hexPattern = /^#([0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/;
+      return hexPattern.test(hex.trim());
+    };
+
+    const propertyRowEl = document.createElement("div");
+    propertyRowEl.classList.add("ui-window__helper__flex-row", "ui-window__content__info-row");
+    if (id != null) propertyRowEl.id = id;
+
+    // Create a label on the left
+    const labelEl = document.createElement("label");
+    labelEl.textContent = `${label}:`;
+    propertyRowEl.appendChild(labelEl);
+
+    // Create a spacer in the middle
+    const spacerEl = document.createElement("div");
+    spacerEl.classList.add("ui-window__helper__spacer");
+    propertyRowEl.appendChild(spacerEl);
+
+    // Create a value span on the right
+    const valueEl = document.createElement("span");
+    valueEl.classList.add("ui-window__content__info-value");
+    valueEl.textContent = value;
+    propertyRowEl.appendChild(valueEl);
+
+    // Pretifier
+    if (isHexColor(value)) {
+      valueEl.style.backgroundColor = value;
+      valueEl.style.padding = "0 6px";
+      valueEl.style.borderRadius = "6px";
+
+      valueEl.style.color = color.getHexLuminance(value) > 115 ? "#323238" : "#FFFFFF";
+    }
+
+    // Append the new property panel
+    this.contentElement.appendChild(propertyRowEl);
+    return propertyRowEl;
+  }
+
+  // ..
+  public addDropperPanel(label: string, id?: string): HTMLDivElement {
+    const dropperPanelEl = document.createElement("div");
+    dropperPanelEl.classList.add("ui-window__helper__flex-row");
+    if (id != null) dropperPanelEl.id = id;
+
+    // Create a label on the left
+    const labelEl = document.createElement("label");
+    labelEl.textContent = `${label}:`;
+    dropperPanelEl.appendChild(labelEl);
+
+    // Create a spacer in the middle
+    const spacerEl = document.createElement("div");
+    spacerEl.classList.add("ui-window__helper__spacer");
+    dropperPanelEl.appendChild(spacerEl);
+
+    // Create a dropper button on the right
+    const buttonEl = document.createElement("button");
+    buttonEl.classList.add("ui-window__mini-button");
+    buttonEl.style.backgroundColor = "transparent";
+
+    const iconEl = document.createElement("img");
+    iconEl.classList.add("ui-window__mini-button__icon");
+    iconEl.src = "./assets/icons/dropper.svg";
+    buttonEl.appendChild(iconEl);
+    dropperPanelEl.appendChild(buttonEl);
+
+    // Append the new dropper panel
+    this.contentElement.appendChild(dropperPanelEl);
+    return dropperPanelEl;
   }
 
   // ..

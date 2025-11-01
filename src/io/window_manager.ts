@@ -74,6 +74,9 @@ export class WindowManager {
         case WindowType.DebugStats:
           windowInstance = this.createDebugStatsWindow();
           break;
+        case WindowType.DebugQuickLook:
+          windowInstance = this.createQuickLookWindow();
+          break;
         default:
           return undefined;
       }
@@ -287,6 +290,75 @@ export class WindowManager {
     } else {
       // ! todo: log error
     }
+
+    return outWindow;
+  }
+
+  private createQuickLookWindow(): Window {
+    // Create a new window
+    const windowTitle = "Quick Look";
+    const windowPosition = { x: 160, y: 120 };
+    const windowSize = { width: 340, height: 460 };
+    const windowMaxSize = { width: 420, height: 600 };
+    const outWindow = new Window(this.host, windowTitle, windowPosition, windowSize, windowMaxSize);
+
+    // Setup content for this window
+    const lookUpContent = new WindowContent();
+    outWindow.addNewContent(lookUpContent.contentElement, "Look up", "./assets/icons/settings.svg");
+
+    // Customize the content
+    const dropperEl = lookUpContent.addDropperPanel("Select Particle");
+    lookUpContent.addSeparator(0);
+    lookUpContent.addSection("Properties:");
+    let nameEl = lookUpContent.addPropertyPanel("Name", "Undefined");
+    let colorEl = lookUpContent.addPropertyPanel("Color", "#000000");
+    let posEl = lookUpContent.addPropertyPanel("Position", "NaN");
+    let indexEl = lookUpContent.addPropertyPanel("Index", "NaN");
+    let handleEl = lookUpContent.addPropertyPanel("Handle", "NaN");
+    let idEl = lookUpContent.addPropertyPanel("Particle ID", "NaN");
+    let isMovableEl = lookUpContent.addPropertyPanel("Is Movable", "NaN");
+    let densityEl = lookUpContent.addPropertyPanel("Density", "NaN");
+
+    // Add custom events
+    dropperEl.querySelector("button")?.addEventListener("click", () => {
+      if (this.boggedState.isInspectingParticle) {
+        this.boggedState.isInspectingParticle = false;
+      } else {
+        this.boggedState.canvasElement?.classList.add("cursor-picker");
+        this.boggedState.isInspectingParticle = true;
+      }
+    });
+    this.boggedState.canvasElement?.addEventListener("pointerdown", () => {
+      if (this.boggedState.isInspectingParticle) {
+        this.boggedState.canvasElement?.classList.remove("cursor-picker");
+        this.boggedState.isInspectingParticle = false;
+        const mouseX = this.boggedState.mouseX;
+        const mouseY = this.boggedState.mouseY;
+        const particle = this.boggedState.currentGrid?.getParticleAt(Math.floor(mouseX), Math.floor(mouseY));
+        if (particle) {
+          let handleVal = handleEl.querySelector("span");
+          if (handleVal) handleVal.textContent = particle.handle.toString();
+          let idVal = idEl.querySelector("span");
+          if (idVal) idVal.textContent = particle.id.toString();
+          let nameVal = nameEl.querySelector("span");
+          if (nameVal) nameVal.textContent = particle.name;
+          let colorVal = colorEl.querySelector("span");
+          if (colorVal) {
+            let colorHex = color.colorToHex(particle.color);
+            colorVal.textContent = colorHex;
+            colorVal.style.backgroundColor = colorHex;
+          }
+          let posVal = posEl.querySelector("span");
+          if (posVal) posVal.textContent = `X: ${particle.position.x},Y: ${particle.position.y}`;
+          let indexVal = indexEl.querySelector("span");
+          if (indexVal) indexVal.textContent = particle.index.toString();
+          let isMovableVal = isMovableEl.querySelector("span");
+          if (isMovableVal) isMovableVal.textContent = particle.isMovable.toString();
+          let densityVal = densityEl.querySelector("span");
+          if (densityVal) densityVal.textContent = particle.density.toString();
+        }
+      }
+    });
 
     return outWindow;
   }

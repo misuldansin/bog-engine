@@ -27,6 +27,7 @@ async function initialize(): Promise<void> {
 
     // Initialise global state
     const boggedState = new BoggedState(settings, particleData);
+    boggedState.canvasElement = canvas;
 
     // Initialise Renderer
     const renderer = new Renderer(boggedState, canvas);
@@ -46,8 +47,8 @@ async function initialize(): Promise<void> {
     engine.start();
 
     // ! debug: .. <
-    // console.log(particleData);
-    // addDemoWindow(viewport);
+    console.log(particleData);
+    addDemoWindow(viewport);
     // ! debug: .. >
 
     // ..
@@ -79,6 +80,7 @@ function addDemoWindow(hostEl: HTMLDivElement) {
   const size = { width: 380, height: 600 };
   const maxSize = { width: 800, height: 1200 };
   const demoWindow = new Window(hostEl, "Demo Window", position, size, maxSize);
+  demoWindow.setVisibility(false);
 
   // --- Emitor Controls ---
   const newContent = new WindowContent();
