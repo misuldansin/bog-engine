@@ -1,239 +1,187 @@
-import { Utilities } from "./structs/utils";
-import type {
-  ParticleMap,
-  BaseParticleData,
-  TechincalParticleData,
-  SolidParticleData,
-  LiquidParticleData,
-  GasParticleData,
-  SandParticleData,
-  ElectronicParticleData,
-  GameSettings,
-} from "./types";
+import type { Category, Element, Phase } from "./types";
+import { Categories, Phases, Utilities } from "./structs/utils";
+import { GameSettings } from "./settings";
+import { color } from "./structs/color_utils";
 
-// This interface has all particle data possible keys the loader expects
-interface RawParticleData {
-  name?: string;
-  category?: number;
-  base_color?: string;
-  variant_color?: string;
-  is_movable?: boolean;
-  density?: number;
-
-  max_concentration?: number;
-
-  repose_angle?: number;
-}
-
-// ..
-export async function getFileText(filePath: string): Promise<string> {
-  try {
-    const response = await fetch(filePath);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    const fileText = await response.text();
-    return fileText;
-  } catch (error) {
-    console.error(`Failed to read particle data from ${filePath}:`, error);
-    throw new Error("Failed to load particle data.");
-  }
-}
-
-// ..
-export async function loadParticleData(filePath: string): Promise<ParticleMap> {
-  // Load text file from the given file path
+// Loads elements data from a text file and returns them as particle data map
+export async function loadElements(filePath: string): Promise<Record<number, Element>> {
+  // Retrieve text file from the given file path
   const fileText: string = await getFileText(filePath);
 
-  // Processed data
-  let rawRetrievedData: Record<number, RawParticleData> = {};
-  let processedIds = new Set<number>();
-
-  // Loop through each lines and retrieve raw particle data
+  const rawData: Record<number, Element> = {};
+  const processedIds = new Set<number>();
   let currentId: number | null = null;
+
+  // Process file line by line and retrieve raw data
   for (const line of fileText.split("\n")) {
     // Trim line of any whitespaces and/ or tabs
-    const thisLine = line.trim();
+    const trimmed = line.trim();
 
     // Ignore empty lines and lines starting with '#'
-    if (thisLine.length === 0 || thisLine.startsWith("#")) {
-      continue;
-    }
+    if (trimmed.length === 0 || trimmed.startsWith("#")) continue;
 
-    // We have encountered a new Particle Block [ID]
-    if (thisLine.startsWith("[") && thisLine.endsWith("]")) {
-      // Retrieve particle block's id and verify it
-      const idStr = thisLine.slice(1, -1);
-      const id = parseInt(idStr, 10);
+    // We have encountered a new Particle Block '[ ID ]'
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      const id = parseInt(trimmed.slice(1, -1), 10);
 
-      // Reject invalid (<0) and reserved IDs (<10)
+      // The id is invalid or is reserved (ID < 10), ignoring
       if (isNaN(id) || id < 10) {
         currentId = null;
-        continue; // Done with this line
+        continue; // This line is processed
       }
-
-      // Check for duplicate ids
-      if (processedIds.has(id)) {
-        console.warn(`[Loader] Duplicate ID found: ${id}. Ignoring.`);
+      // The id has already been assigned to a previous particle, ignoring
+      else if (processedIds.has(id)) {
+        console.warn(`[Loader]: Duplicate ID found: ${id}. Ignoring.`);
         currentId = null;
-        continue; // Done with this line
+        continue; // This line is processed
       }
 
-      // Store the new ID and initialize raw data
+      // Store the new unique ID and start retreiving data
       processedIds.add(id);
       currentId = id;
-      rawRetrievedData[id] = {};
-      continue; // Done with this line
+      rawData[id] = {
+        id: id,
+        name: undefined!,
+        phase: undefined!,
+        category: undefined!,
+        isMovable: undefined!,
+        density: undefined!,
+        baseColor: undefined!,
+        blendColor: undefined!,
+        highlightColor: undefined!,
+        cohesion: undefined!,
+        reposeAngle: undefined!,
+      };
+      continue; // This line is processed
     }
 
-    // No new particle block, continue retreiving properties of this particle block
+    // We have a particle block, try and continue retrieving any valid keys
     if (currentId !== null) {
       // Retieve trimmed key and value pairs
-      const parts = thisLine.split(":").map((string) => string.trim());
+      const colonIndex = trimmed.indexOf(":");
+      if (colonIndex === -1) continue;
 
-      // We have both key and it's value
-      if (parts.length === 2) {
-        const key = parts[0];
-        const value = parts[1];
-        const currentData = rawRetrievedData[currentId];
+      const key = trimmed.substring(0, colonIndex).trim();
+      const value = trimmed.substring(colonIndex + 1).trim();
+      if (!key || value === undefined || value.length === 0) continue;
 
-        // Match key names here and populate currect particle data
-        switch (key) {
-          case "name":
-            currentData!.name = value!;
-            break;
-          case "category":
-            currentData!.category = parseInt(value!, 10);
-            break;
-          case "base_color":
-            currentData!.base_color = value!;
-            break;
-          case "variant_color":
-            currentData!.variant_color = value!;
-            break;
-          case "is_movable":
-            currentData!.is_movable = value === "true";
-            break;
-          case "density":
-            currentData!.density = parseFloat(value!);
-            break;
-          case "max_concentration":
-            currentData!.max_concentration = parseInt(value!);
-            break;
-          case "repose_angle":
-            currentData!.repose_angle = parseFloat(value!);
-            break;
-          default:
-            break;
-        }
+      const currentData = rawData[currentId]!;
+      switch (key) {
+        case "name":
+          currentData.name = value;
+          break;
+        case "phase":
+          if (value === "solid") currentData.phase = 1;
+          else if (value === "liquid") currentData.phase = 2;
+          else if (value === "gas") currentData.phase = 3;
+          else if (value === "plasma") currentData.phase = 4;
+          break;
+        case "category":
+          if (value === "solids") currentData.category = 1;
+          else if (value === "liquids") currentData.category = 2;
+          else if (value === "gases") currentData.category = 3;
+          else if (value === "sands") currentData.category = 4;
+          else if (value === "electronics") currentData.category = 5;
+          break;
+        case "base_color":
+          currentData.baseColor = color.hexToColor(value);
+          break;
+        case "blend_color":
+          currentData.blendColor = color.hexToColor(value);
+          break;
+        case "highlight_color":
+          currentData.highlightColor = color.hexToColor(value);
+          break;
+        case "is_movable":
+          if (value.toLowerCase() === "true") currentData.isMovable = true;
+          else if (value.toLowerCase() === "false") currentData.isMovable = false;
+          break;
+        case "density":
+          currentData.density = parseFloat(value);
+          break;
+        case "cohesion":
+          currentData.cohesion = parseInt(value);
+          break;
+        case "repose_angle":
+          currentData.reposeAngle = parseInt(value);
+          break;
+        default:
+          break;
       }
     }
   }
 
-  // Checksum and finalization
-  const finalMapOut: ParticleMap = {};
+  // Checksum
+  const outData: Record<number, Element> = {};
 
-  // Go through each raw retireved particle data and add them to the final particle map
-  for (const id in rawRetrievedData) {
-    const rawData = rawRetrievedData[id];
-    const numberId = parseInt(id, 10);
+  // Add all raw data to out data, raw data with missing properties are gracefully, swiftly, respectfully (not really) ignored
+  for (const id in rawData) {
+    const data = rawData[id];
+    const idNumber = parseInt(id, 10);
+    if (!data) continue;
 
-    // Base particle should have these properties, discard if it doesn't
+    // Ignore data with missing keys
     if (
-      rawData!.name === undefined ||
-      rawData!.category === undefined ||
-      rawData!.base_color === undefined ||
-      rawData!.variant_color === undefined ||
-      rawData!.is_movable === undefined ||
-      rawData!.density === undefined
+      data.id === undefined ||
+      data.name === undefined ||
+      data.phase === undefined ||
+      data.category === undefined ||
+      data.isMovable === undefined ||
+      data.density === undefined ||
+      data.baseColor === undefined ||
+      data.blendColor === undefined ||
+      data.highlightColor === undefined ||
+      data.cohesion === undefined ||
+      data.reposeAngle === undefined
     ) {
-      console.warn(`[Loader] Corrupted particle block found of ID: ${numberId}. Missing core properties.`);
+      console.warn(`[Loader]: Particle block of ID: ${idNumber} was found with missing or corrupted properties. Ignoring.`);
       continue; // Yeet!
     }
 
-    // This particle is atleast a base particle
-    let baseParticleData: BaseParticleData = {
-      id: numberId,
-      name: rawData!.name,
-      baseColor: rawData!.base_color,
-      variantColor: rawData!.variant_color,
-      isMovable: rawData!.is_movable,
-      density: rawData!.density,
-    } as BaseParticleData;
-
-    // Check which category this particle belongs to
-    if (rawData!.category === 1) {
-      // If this particle has solid particle's properties, store it as solid particle data
-      if (true) {
-        finalMapOut[numberId] = {
-          ...baseParticleData,
-          category: 1,
-        } as SolidParticleData;
-      }
-    } else if (rawData!.category === 2) {
-      // If this particle has liquid particle's properties, store it as liquid particle data
-      if (true) {
-        finalMapOut[numberId] = {
-          ...baseParticleData,
-          maxConcentration: rawData!.max_concentration,
-          category: 2,
-        } as LiquidParticleData;
-      }
-    } else if (rawData!.category === 3) {
-      // If this particle has gas particle's properties, store it as gas particle data
-      if (true) {
-        finalMapOut[numberId] = {
-          ...baseParticleData,
-          category: 3,
-        } as GasParticleData;
-      }
-    } else if (rawData!.category === 4) {
-      // If this particle has sand particle's properties, store it as sand particle data
-      if (true) {
-        finalMapOut[numberId] = {
-          ...baseParticleData,
-          category: 4,
-          reposeAngle: rawData!.repose_angle,
-          reposeDirections: Utilities.calculateRepose(rawData!.repose_angle!),
-        } as SandParticleData;
-      }
-    } else if (rawData!.category === 5) {
-      // If this particle has qlectronic particle's properties, store it as electronic particle data
-      if (true) {
-        finalMapOut[numberId] = {
-          ...baseParticleData,
-          category: 5,
-        } as ElectronicParticleData;
-      }
-    } else {
-      // Skip if it doesn't belong to any category; we don't allow base particles
-    }
+    outData[data.id] = {
+      id: data.id,
+      name: data.name,
+      phase: data.phase,
+      category: data.category,
+      isMovable: data.isMovable,
+      density: data.density,
+      baseColor: data.baseColor,
+      blendColor: data.blendColor,
+      highlightColor: data.highlightColor,
+      cohesion: data.cohesion,
+      reposeAngle: data.reposeAngle,
+    };
   }
 
   // Hardcoded Technical Particles (ID 0-9)
-  finalMapOut[0] = {
-    id: 0,
 
+  // EMPTY particle ( ID: 0 )
+  outData[0] = {
+    id: 0,
     name: "Empty",
-    category: 0,
-    baseColor: "#0E0E11",
-    variantColor: "#0E0E11",
+    phase: Phases.VIRTUAL,
+    category: Categories.TECHNICAL,
     isMovable: true,
     density: 0.0,
-  } as TechincalParticleData;
+    baseColor: color.hexToColor("#0E0E11"),
+    blendColor: color.hexToColor("#0E0E11"),
+    highlightColor: color.hexToColor("#0E0E11"),
+    cohesion: 0,
+    reposeAngle: 45,
+  };
 
-  return finalMapOut;
+  return outData;
 }
 
-// ..
-export async function loadSettings(path: string): Promise<GameSettings> {
-  // Retrieve file text
+// Loads game settings from a text file, missing settings are safely populated with the default GameSettings object
+export async function loadSettings(path: string): Promise<typeof GameSettings> {
+  // Retrieve text file from the given file path
   const fileText: string = await getFileText(path);
 
-  // Go line by line
-  const settings: Partial<GameSettings> = {};
+  // Create a copy of game settings
+  const outSettings = { ...GameSettings };
+
+  // Process file line by line
   const lines = fileText.split(/\r?\n/);
   for (const line of lines) {
     const trimmed = line.trim();
@@ -251,25 +199,25 @@ export async function loadSettings(path: string): Promise<GameSettings> {
     const value = trimmed.substring(colonIndex + 1).trim();
     if (!category || !key || value === undefined || value.length === 0) continue;
 
-    // Match and asign keys
+    // Match category and key to update settings
     let parsedNumber: number;
     if (category === "engine") {
       switch (key) {
         case "width":
           parsedNumber = parseInt(value);
-          if (!isNaN(parsedNumber)) settings.gameWidth = parsedNumber;
+          if (!isNaN(parsedNumber)) outSettings.gameWidth = parsedNumber;
           break;
         case "height":
           parsedNumber = parseInt(value);
-          if (!isNaN(parsedNumber)) settings.gameHeight = parsedNumber;
+          if (!isNaN(parsedNumber)) outSettings.gameHeight = parsedNumber;
           break;
         case "render_interval":
           parsedNumber = parseFloat(value);
-          if (!isNaN(parsedNumber)) settings.renderInterval = parsedNumber;
+          if (!isNaN(parsedNumber)) outSettings.renderInterval = parsedNumber;
           break;
         case "physics_interval":
           parsedNumber = parseFloat(value);
-          if (!isNaN(parsedNumber)) settings.physicsInterval = parsedNumber;
+          if (!isNaN(parsedNumber)) outSettings.physicsInterval = parsedNumber;
           break;
         default:
           break;
@@ -278,15 +226,15 @@ export async function loadSettings(path: string): Promise<GameSettings> {
       switch (key) {
         case "brush_size":
           parsedNumber = parseInt(value);
-          if (!isNaN(parsedNumber)) settings.brushSize = parsedNumber;
+          if (!isNaN(parsedNumber)) outSettings.brushSize = parsedNumber;
           break;
         case "brush_max_size":
           parsedNumber = parseInt(value);
-          if (!isNaN(parsedNumber)) settings.brushMaxSize = parsedNumber;
+          if (!isNaN(parsedNumber)) outSettings.brushMaxSize = parsedNumber;
           break;
         case "brush_sensitivity":
           parsedNumber = parseFloat(value);
-          if (!isNaN(parsedNumber)) settings.brushSensitivity = parsedNumber;
+          if (!isNaN(parsedNumber)) outSettings.brushSensitivity = parsedNumber;
           break;
         default:
           break;
@@ -294,12 +242,12 @@ export async function loadSettings(path: string): Promise<GameSettings> {
     } else if (category === "debug") {
       switch (key) {
         case "start_enabled":
-          if (value.toLowerCase() === "true") settings.debugEnabled = true;
-          else if (value.toLowerCase() === "false") settings.debugEnabled = false;
+          if (value.toLowerCase() === "true") outSettings.debugEnabled = true;
+          else if (value.toLowerCase() === "false") outSettings.debugEnabled = false;
           break;
         case "overlay_start_enabled":
-          if (value.toLowerCase() === "true") settings.debugOverlayEnabled = true;
-          else if (value.toLowerCase() === "false") settings.debugOverlayEnabled = false;
+          if (value.toLowerCase() === "true") outSettings.debugOverlayEnabled = true;
+          else if (value.toLowerCase() === "false") outSettings.debugOverlayEnabled = false;
           break;
         default:
           break;
@@ -307,18 +255,22 @@ export async function loadSettings(path: string): Promise<GameSettings> {
     }
   }
 
-  // Apply defaults for missing values
-  return {
-    gameWidth: settings.gameWidth ?? 342,
-    gameHeight: settings.gameHeight ?? 192,
-    renderInterval: settings.renderInterval ?? 16.667,
-    physicsInterval: settings.physicsInterval ?? 25,
+  return Object.freeze(outSettings);
+}
 
-    brushSize: settings.brushSize ?? 4,
-    brushMaxSize: settings.brushMaxSize ?? 42,
-    brushSensitivity: settings.brushSensitivity ?? 0.02,
+// Safly loads a file and returns the content as string
+export async function getFileText(filePath: string): Promise<string> {
+  try {
+    const response = await fetch(filePath);
 
-    debugEnabled: settings.debugEnabled ?? false,
-    debugOverlayEnabled: settings.debugOverlayEnabled ?? false,
-  };
+    if (!response.ok) {
+      throw new Error(`HTTP error! Failed to fetch ${filePath}. Status: ${response.status}`);
+    }
+
+    const fileText = await response.text();
+    return fileText;
+  } catch (error) {
+    console.error(`Failed to read file from ${filePath}:`, error);
+    throw new Error("Failed to load file.");
+  }
 }

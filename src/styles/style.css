@@ -130,7 +130,7 @@ body {
 }
 
 #viewport {
-  background: radial-gradient(circle at 50% 50%, #2b2d31 0%, #1e1f22 80%);
+  background: radial-gradient(circle at center, var(--color-bg-variant) 50%, var(--color-bg-primary) 100%);
   width: 100%;
   flex-grow: 1;
 

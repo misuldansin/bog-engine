@@ -1,310 +1,181 @@
-import type { BoggedState } from "../core/bogged_state";
-import { WindowManager, WindowType } from "./window_manager";
-import type { ParticleMap } from "../types";
+import type { BogEngine } from "../core/bog_engine";
 
 export class InputManager {
-  // Dependencies & DOM References
-  private readonly boggedState: BoggedState;
-  private readonly windowManager: WindowManager;
-  private readonly viewport: HTMLDivElement;
-  private readonly canvas: HTMLCanvasElement;
+  // Dependencies
+  private readonly bogEngine: BogEngine;
 
-  // Input States
+  // Internal States
+  public rawClientX: number = 0;
+  public rawClientY: number = 0;
+  public rawScrollDeltaY: number = 0;
+  public isPrimaryButtonDown: boolean = false;
+  public isSecondaryButtonDown: boolean = false;
+  public isAuxiliaryButtonDown: boolean = false;
+
   private activePointerId: number | null = null;
-  private isAppMenuOpen: boolean = false;
+  public isCanvasHovered: boolean = false;
+  public scaleFactorX: number = 1;
+  public scaleFactorY: number = 1;
+  public canvasRectLeft: number = 0;
+  public canvasRectTop: number = 0;
 
-  constructor(boggedStateInstance: BoggedState, vieportEl: HTMLDivElement, canvasEl: HTMLCanvasElement) {
-    // Initialise fields
-    this.boggedState = boggedStateInstance;
-    this.windowManager = new WindowManager(vieportEl, boggedStateInstance);
-    this.viewport = vieportEl;
-    this.canvas = canvasEl;
+  constructor(bogEngine: BogEngine, canvasEl: HTMLCanvasElement) {
+    this.bogEngine = bogEngine;
 
-    // Particle palette is openned at startup
+    // Update canvas related properties
+    this.calculateCanvasSize();
 
-    // Bind inputs to DOM elements
-    this.initAppMenu();
-    this.bindCanvasEvents();
-
-    // Disable right click context menu on viewport
-    this.viewport.addEventListener("contextmenu", (e: PointerEvent) => {
-      e.preventDefault();
-    });
-
-    // Global listener for closing any opened app menu
-    document.addEventListener("click", () => {
-      const openDropdown = document.querySelector(".app-menu__dropdown.is-open");
-      if (openDropdown instanceof HTMLDivElement) {
-        openDropdown.classList.remove("is-open");
-        this.isAppMenuOpen = false;
-      }
-    });
-
-    // Open palette window on startup
-    this.windowManager.openWindow(WindowType.Palette);
+    // Bind event listeners
+    this.bindCanvasEvents(canvasEl);
+    this.bindExternalEvents();
   }
 
-  // --------- Helper Functions ---------
+  private bindCanvasEvents(canvasEl: HTMLCanvasElement) {
+    canvasEl.addEventListener("pointerdown", this.onCanvasPointerDown);
+    canvasEl.addEventListener("pointermove", this.onCanvasPointerMove);
+    canvasEl.addEventListener("pointerup", this.onCanvasPointerUp);
+    canvasEl.addEventListener("pointercancel", this.onCanvasPointerUp);
+    canvasEl.addEventListener("lostpointercapture", this.onCanvasPointerUp);
+    canvasEl.addEventListener("pointerenter", this.onCanvasPointerEnter);
+    canvasEl.addEventListener("pointerleave", this.onCanvasPointerLeave);
+    canvasEl.addEventListener("focus", this.onCanvasPointerFocus);
+    canvasEl.addEventListener("blur", this.onCanvasPointerLeave);
+    canvasEl.addEventListener("wheel", this.onCanvasWheel, { passive: false });
+  }
 
-  // Initiale app menu and it's dropdowns and populate them
-  private initAppMenu() {
-    const menuData = [
-      { id: "bog-menu-item", items: ["Settings", "Quit"] },
-      { id: "world-item", items: ["Particle Palette"] },
-      { id: "debug-item", items: ["Quick Look", "Stats", "Debug Menu"] },
-      { id: "help-item", items: ["About", "Report Issue"] },
-    ];
+  // ========================================================
+  // ----------------- Helper Functions ---------------------
 
-    // Create dropdown menus and bind events for appmenu buttons
-    const dropdownItems: HTMLDivElement[] = [];
-    for (let i = 0; i < menuData.length; i++) {
-      const data = menuData[i];
-      if (!data) continue;
+  private bindExternalEvents() {
+    window.addEventListener("pointerup", this.onWindowPointerUp);
+    window.addEventListener("resize", this.calculateCanvasSize);
+    document.addEventListener("visibilitychange", this.onViewportVisibilityChange);
+  }
 
-      // Get menu button elements
-      const menuEl = document.getElementById(data.id);
-      if (!(menuEl instanceof HTMLDivElement)) continue;
+  private tryReleaseCapture(element: HTMLElement, pointerId: number) {
+    try {
+      element.releasePointerCapture(pointerId);
+    } catch (err) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("Pointer capture error:", err);
+      }
+    }
+  }
 
-      // Create dropdown for this menu
-      const dropdown = this.createAppMenuDropdowns(menuEl, data.items);
-      dropdown.items.forEach((item) => {
-        dropdownItems.push(item);
-      });
+  private trySetCapture(element: HTMLElement, pointerId: number) {
+    try {
+      element.setPointerCapture(pointerId);
+    } catch (err) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("Pointer capture error:", err);
+      }
+    }
+  }
 
-      // Bind event listeners for this menu
-      const dropdownMenu = dropdown.menu;
-      menuEl.addEventListener("click", (event) => {
-        event.stopPropagation();
+  // ========================================================
+  // -------------- Event Listener Functions ----------------
 
-        // Close any previously openned dropdown menu
-        const openDropdown = document.querySelector(".app-menu__dropdown.is-open");
-        if (openDropdown && openDropdown !== dropdownMenu) {
-          openDropdown.classList.remove("is-open");
-        }
+  private onCanvasPointerDown = (e: PointerEvent) => {
+    // Update pointer raw position
+    this.rawClientX = e.clientX;
+    this.rawClientY = e.clientY;
 
-        // Toggle this dropdown
-        const isOpen = dropdownMenu.classList.toggle("is-open");
-        this.isAppMenuOpen = isOpen;
-      });
-      menuEl.addEventListener("mouseenter", () => {
-        if (this.isAppMenuOpen && !dropdownMenu.classList.contains("is-open")) {
-          // Close any previously openned dropdown menu
-          const openDropdown = document.querySelector(".app-menu__dropdown.is-open");
-          if (openDropdown && openDropdown !== dropdownMenu) {
-            openDropdown.classList.remove("is-open");
-          }
+    // Capture pointer click
+    switch (e.button) {
+      case 0:
+        this.isPrimaryButtonDown = true;
+        break;
+      case 2:
+        this.isSecondaryButtonDown = true;
+        break;
+      case 1:
+        this.isAuxiliaryButtonDown = true;
+        break;
 
-          // Open this dropdown
-          dropdownMenu.classList.add("is-open");
-        }
-      });
+      default:
+        break;
     }
 
-    // Bind event listeners for dropdown items
-    dropdownItems.forEach((itemEl) => {
-      const text = itemEl.textContent;
+    // Try to capture canvas pointer event to keep recieving inputs
+    // ..even if pointer is not in canvas bounds
+    this.trySetCapture(this.bogEngine.canvasElement, e.pointerId);
+    this.activePointerId = e.pointerId;
+  };
 
-      switch (text) {
-        case "Particle Palette":
-          itemEl.classList.remove("is-disabled");
-          itemEl.addEventListener("click", () => {
-            this.windowManager.openWindow(WindowType.Palette);
-          });
-          break;
-        case "Stats":
-          itemEl.classList.remove("is-disabled");
-          itemEl.addEventListener("click", () => {
-            this.windowManager.openWindow(WindowType.DebugStats);
-          });
-          break;
-        case "Quick Look":
-          itemEl.classList.remove("is-disabled");
-          itemEl.addEventListener("click", () => {
-            this.windowManager.openWindow(WindowType.DebugQuickLook);
-          });
-          break;
-        case "About":
-          itemEl.classList.remove("is-disabled");
-          itemEl.addEventListener("click", () => {
-            window.open("https://github.com/misuldansin/bog-engine/", "_blank");
-          });
-          break;
-        case "Report Issue":
-          itemEl.classList.remove("is-disabled");
-          itemEl.addEventListener("click", () => {
-            window.open("https://github.com/misuldansin/bog-engine/issues/new", "_blank");
-          });
-          break;
-        default:
-          break;
-      }
-    });
-  }
+  private onCanvasPointerMove = (e: PointerEvent) => {
+    // Update pointer raw position
+    this.rawClientX = e.clientX;
+    this.rawClientY = e.clientY;
 
-  // Creates app menu dropdown menus and populates it's items
-  private createAppMenuDropdowns(buttonEl: HTMLDivElement, itemNames: string[]): { menu: HTMLDivElement; items: HTMLDivElement[] } {
-    const menuEl = document.createElement("div");
-    menuEl.classList.add("app-menu__dropdown");
+    // Update pointer button click during drag
+    if (typeof e.buttons === "number") {
+      this.isPrimaryButtonDown = (e.buttons & 1) === 1;
+      this.isSecondaryButtonDown = (e.buttons & 2) === 2;
+      this.isAuxiliaryButtonDown = (e.button & 4) === 4;
+    }
+  };
 
-    // Create dropmenu items and append them to the menu element
-    let items: HTMLDivElement[] = [];
-    itemNames.forEach((name) => {
-      const itemEl = document.createElement("div");
-      itemEl.classList.add("app-menu__dropdown-item", "is-disabled");
-      itemEl.textContent = name;
-      menuEl.appendChild(itemEl);
-      items.push(itemEl);
-    });
-    buttonEl.appendChild(menuEl);
-    return { menu: menuEl, items: items };
-  }
-
-  // Bind canvas related event listeners
-  private bindCanvasEvents() {
-    // Helper functions for this function
-    const releaseCanvasPointerCapture = (e: PointerEvent) => {
-      try {
-        this.canvas.releasePointerCapture(e.pointerId);
-      } catch (err) {
-        if (process.env.NODE_ENV === "development") {
-          console.warn("Pointer capture error:", err);
-        }
-      }
-    };
-    const setCanvasPointerCapture = (e: PointerEvent) => {
-      try {
-        this.canvas.setPointerCapture(e.pointerId);
-      } catch (err) {
-        if (process.env.NODE_ENV === "development") {
-          console.warn("Pointer capture error:", err);
-        }
-      }
-    };
-    const updateMouseCoords = (e: PointerEvent) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const scaleX = this.boggedState.gameWidth / rect.width;
-      const scaleY = this.boggedState.gameHeight / rect.height;
-      const mouseX = (e.clientX - rect.left) * scaleX;
-      const mouseY = this.canvas.height - (e.clientY - rect.top) * scaleY;
-      this.boggedState.mouseX = mouseX;
-      this.boggedState.mouseY = mouseY;
-    };
-
-    // Handle when pointer button is pressed
-    this.canvas.addEventListener("pointerdown", (e: PointerEvent) => {
-      // Update mouse coordinates
-      updateMouseCoords(e);
-
-      switch (e.button) {
-        case 0: // Left Click
-          this.boggedState.isLeftMouseButtonDown = true;
-          break;
-
-        case 2: // Right Clicl
-          this.boggedState.isRightMouseButtonDown = true;
-          break;
-
-        default:
-          this.boggedState.isLeftMouseButtonDown = false;
-          this.boggedState.isRightMouseButtonDown = false;
-          break;
-      }
-
-      // Capture pointer to keep receiving pointer events even if pointer leaves the canvas
-      setCanvasPointerCapture(e);
-      this.activePointerId = e.pointerId;
-    });
-
-    // Handle when pointer moves
-    this.canvas.addEventListener("pointermove", (e: PointerEvent) => {
-      // Update mouse coordinates
-      updateMouseCoords(e);
-
-      // Update pointer button if user changed hold state mid drag
-      if (typeof e.buttons === "number") {
-        this.boggedState.isLeftMouseButtonDown = (e.buttons & 1) === 1;
-        this.boggedState.isRightMouseButtonDown = (e.buttons & 2) === 2;
-      }
-    });
-
-    // Handle when pointer button is released
-    this.canvas.addEventListener("pointerup", (e: PointerEvent) => {
-      if (this.activePointerId === e.pointerId) {
-        releaseCanvasPointerCapture(e);
-        this.activePointerId = null;
-      }
-
-      this.boggedState.isLeftMouseButtonDown = false;
-      this.boggedState.isRightMouseButtonDown = false;
-    });
-
-    // Handle when pointer button aborted unexpectedly
-    this.canvas.addEventListener("pointercancel", (e: PointerEvent) => {
-      if (this.activePointerId === e.pointerId) {
-        releaseCanvasPointerCapture(e);
-        this.activePointerId = null;
-      }
-
-      this.boggedState.isLeftMouseButtonDown = false;
-      this.boggedState.isRightMouseButtonDown = false;
-    });
-
-    // Handle when canvas losts pointer
-    this.canvas.addEventListener("lostpointercapture", (e: PointerEvent) => {
-      if (this.activePointerId === e.pointerId) {
-        releaseCanvasPointerCapture(e);
-        this.activePointerId = null;
-      }
-
-      this.boggedState.isLeftMouseButtonDown = false;
-      this.boggedState.isRightMouseButtonDown = false;
-    });
-
-    // Handle when pointer enters the canvas area
-    this.canvas.addEventListener("pointerenter", (e: PointerEvent) => {
-      updateMouseCoords(e);
-      this.boggedState.isBrushOutlineVisible = true;
-    });
-
-    // Handle when pointer leaves the canvas area
-    this.canvas.addEventListener("pointerleave", () => {
-      this.boggedState.isBrushOutlineVisible = false;
-    });
-
-    // Handle when canvas is focused
-    this.canvas.addEventListener("focus", () => {
-      this.boggedState.isBrushOutlineVisible = true;
-    });
-
-    // Handle when canvas is unfocused
-    this.canvas.addEventListener("blur", () => {
-      this.boggedState.isBrushOutlineVisible = false;
-    });
-
-    // Handle when mouse wheel event occurs
-    this.canvas.addEventListener(
-      "wheel",
-      (e: WheelEvent) => {
-        e.preventDefault();
-        const scrollDelta: number = Math.floor(this.boggedState.currentBrushSize - e.deltaY * this.boggedState.brushSensitivity);
-        const newSize: number = Math.max(0, Math.min(scrollDelta, this.boggedState.brushMaxSize));
-        this.boggedState.currentBrushSize = newSize;
-      },
-      { passive: false }
-    );
-
-    // Handle window fallback events
-    window.addEventListener("pointerup", () => {
-      this.boggedState.isLeftMouseButtonDown = false;
-      this.boggedState.isRightMouseButtonDown = false;
+  private onCanvasPointerUp = (e: PointerEvent) => {
+    // The same pointer has called this event, try to release captured pointer
+    if (this.activePointerId === e.pointerId) {
+      this.tryReleaseCapture(this.bogEngine.canvasElement, e.pointerId);
       this.activePointerId = null;
-    });
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        this.boggedState.isLeftMouseButtonDown = false;
-        this.boggedState.isRightMouseButtonDown = false;
-        this.activePointerId = null;
-      }
-    });
-  }
+    }
+
+    // Update pointer button flags
+    this.isPrimaryButtonDown = false;
+    this.isSecondaryButtonDown = false;
+    this.isAuxiliaryButtonDown = false;
+  };
+
+  private onCanvasPointerEnter = (e: PointerEvent) => {
+    // Update pointer raw position
+    this.rawClientX = e.clientX;
+    this.rawClientY = e.clientY;
+
+    // Update internal states
+    this.isCanvasHovered = true;
+  };
+
+  private onCanvasPointerFocus = () => {
+    // Update internal states
+    this.isCanvasHovered = true;
+  };
+
+  private onCanvasPointerLeave = () => {
+    this.isCanvasHovered = false;
+  };
+
+  private onCanvasWheel = (e: WheelEvent) => {
+    e.preventDefault();
+
+    // Update raw scroll delta
+    this.rawScrollDeltaY = e.deltaY;
+  };
+
+  private onWindowPointerUp = () => {
+    this.isPrimaryButtonDown = false;
+    this.isSecondaryButtonDown = false;
+    this.isAuxiliaryButtonDown = false;
+    this.activePointerId = null;
+  };
+
+  private onViewportVisibilityChange = () => {
+    if (document.hidden) {
+      this.isPrimaryButtonDown = false;
+      this.isSecondaryButtonDown = false;
+      this.isAuxiliaryButtonDown = false;
+      this.activePointerId = null;
+    }
+  };
+
+  private calculateCanvasSize = () => {
+    const canvasElement = this.bogEngine.canvasElement;
+    const rect = canvasElement.getBoundingClientRect();
+
+    this.canvasRectLeft = rect.left;
+    this.canvasRectTop = rect.top;
+    this.scaleFactorX = this.bogEngine.gameWidth / rect.width;
+    this.scaleFactorY = this.bogEngine.gameHeight / rect.height;
+  };
 }

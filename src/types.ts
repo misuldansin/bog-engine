@@ -1,119 +1,51 @@
+import type { Categories, Phases } from "./structs/utils";
+
 // --------- CORE TYPES ---------
-export interface GameSettings {
-  gameWidth: number;
-  gameHeight: number;
-  renderInterval: number;
-  physicsInterval: number;
+export type Phase = (typeof Phases)[keyof typeof Phases];
+export type Category = (typeof Categories)[keyof typeof Categories];
 
-  brushSize: number;
-  brushMaxSize: number;
-  brushSensitivity: number;
+export interface Element {
+  // Base properties
+  id: number;
+  name: string;
+  phase: Phase;
+  category: Category;
+  isMovable: boolean;
+  density: number;
 
-  debugEnabled: boolean;
-  debugOverlayEnabled: boolean;
+  // GPU properties
+  baseColor: Color;
+  blendColor: Color;
+  highlightColor: Color;
+
+  // Physics based properties
+  cohesion: number;
+  reposeAngle: number;
 }
 
-export type ActiveButton = "left" | "right" | "none";
+export interface Particle {
+  position: Vector2;
+  index: Index;
+  color: Color;
+  category: Category;
+  primary: Element;
+  secondary: Element | null;
 
-// export type Group = {};
+  phase: Phase;
+  mass: number;
+  temperature: number;
+}
 
-// export type liquidGroup = { data: Group[]; map: Record<Index, Index> };
-
-export type equalisationGroup = { liquidParticle: Particle[]; emptyParticle: Particle[] };
+// export type equalisationGroup = { liquidParticle: Particle[]; emptyParticle: Particle[] };
 
 // --------- UTILITIES TYPES ---------
 export type Vector2 = { x: number; y: number };
-export type Offset = { dx: number; dy: number };
+export type Offset2 = { dx: number; dy: number };
 export type Size = { width: number; height: number };
-
 export type Index = number;
-
 export type Color = [number, number, number, number] & Uint8ClampedArray;
 export type Pixel = { index: number; value: Color };
 
 export type ContentBarOrientation = "top" | "right" | "bottom" | "left";
 export type FontWeight = "normal" | "bold" | "bolder" | "lighter";
-
-// --------- PARTICLE TYPES ---------
-export interface BaseParticle {
-  handle: number;
-  id: number;
-
-  name: string;
-  color: Color;
-  position: { x: number; y: number };
-  index: number;
-
-  isMovable: boolean;
-  density: number;
-}
-export interface TechincalParticle extends BaseParticle {
-  category: 0;
-}
-export interface SolidParticle extends BaseParticle {
-  category: 1;
-}
-export interface LiquidParticle extends BaseParticle {
-  category: 2;
-  concentration: number;
-  maxConcentration: number;
-}
-export interface GasParticle extends BaseParticle {
-  category: 3;
-}
-export interface SandParticle extends BaseParticle {
-  category: 4;
-  reposeAngle: number;
-  reposeDirections: Offset[][];
-}
-export interface ElectronicParticle extends BaseParticle {
-  category: 5;
-  node: unknown;
-}
-export type Particle = TechincalParticle | SolidParticle | LiquidParticle | GasParticle | SandParticle | ElectronicParticle;
-
-// --------- PARTICLE DATA TYPES ---------
-
-export interface BaseParticleData {
-  id: number;
-
-  name: string;
-  baseColor: string;
-  variantColor: string;
-  isMovable: boolean;
-  density: number;
-}
-export interface TechincalParticleData extends BaseParticleData {
-  category: 0;
-}
-export interface SolidParticleData extends BaseParticleData {
-  category: 1;
-}
-export interface LiquidParticleData extends BaseParticleData {
-  category: 2;
-  maxConcentration: number;
-}
-export interface GasParticleData extends BaseParticleData {
-  category: 3;
-}
-export interface SandParticleData extends BaseParticleData {
-  category: 4;
-  reposeAngle: number;
-  reposeDirections: Offset[][];
-}
-export interface ElectronicParticleData extends BaseParticleData {
-  category: 5;
-}
-export type ParticleData =
-  | TechincalParticleData
-  | SolidParticleData
-  | LiquidParticleData
-  | GasParticleData
-  | SandParticleData
-  | ElectronicParticleData;
-export type ParticleMap = Record<number, ParticleData>;
-
-export type Success<T> = { success: true; value: T };
-export type Failure = { success: false; error: string };
-
-export type Result<T> = Success<T> | Failure;
+export type ActiveButton = "left" | "right" | "none";

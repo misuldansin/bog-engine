@@ -1,4 +1,45 @@
-import type { Offset } from "../types";
+import type { Offset2 } from "../types";
+
+export const Phases = {
+  VIRTUAL: -1,
+  SOLID: 1,
+  LIQUID: 2,
+  GAS: 3,
+  PLASMA: 4,
+} as const;
+
+export const Categories = {
+  TECHNICAL: 0,
+  SOLIDS: 1,
+  LIQUIDS: 2,
+  GASES: 3,
+  SANDS: 4,
+  ELECTRONICS: 5,
+} as const;
+
+export const NEIGHBORHOOD = Object.freeze({
+  ALL_NEIGHBORS: [
+    { dx: -1, dy: 1 },
+    { dx: 0, dy: 1 },
+    { dx: 1, dy: 1 },
+    { dx: -1, dy: 0 },
+    { dx: 1, dy: 0 },
+    { dx: -1, dy: -1 },
+    { dx: 0, dy: -1 },
+    { dx: 1, dy: -1 },
+  ] as Offset2[],
+} as const);
+
+export const NEIGHBOR = Object.freeze({
+  UP_LEFT: { dx: -1, dy: 1 } as Offset2,
+  UP: { dx: 0, dy: 1 } as Offset2,
+  UP_RIGHT: { dx: 1, dy: 1 } as Offset2,
+  LEFT: { dx: -1, dy: 0 } as Offset2,
+  RIGHT: { dx: 1, dy: 0 } as Offset2,
+  DOWN_LEFT: { dx: -1, dy: -1 } as Offset2,
+  DOWN: { dx: 0, dy: -1 } as Offset2,
+  DOWN_RIGHT: { dx: 1, dy: -1 } as Offset2,
+} as const);
 
 export const Utilities = {
   lerp(a: number, b: number, t: number): number {
@@ -17,11 +58,11 @@ export const Utilities = {
     return outArray;
   },
 
-  calculateRepose(angleDeg: number): Offset[][] {
+  calculateRepose(angleDeg: number): Offset2[][] {
     let angle: number = Math.max(10, Math.min(angleDeg, 80));
     const t: number = (angle * Math.PI) / 180;
 
-    let directions: Offset[][] = [];
+    let directions: Offset2[][] = [];
 
     // First, go straight down
     directions.push([{ dx: 0, dy: -1 }]);

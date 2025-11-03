@@ -1,0 +1,289 @@
+# =======================================================================
+#  Particle Metadata (used by the engine to define all particles)
+# ------------------------ Format Rules ---------------------------------
+# | Start with declaring the particle's ID using '[]'                   |
+# | ':' is used to separate Key/value pairs                             |
+# | '#' and empty lines are ignored                                     |
+# | Duplicate particle IDs are ignored                                  |
+# -----------------------------------------------------------------------
+
+## ------------------ SOLIDS (10–99) ------------------ ##
+
+# Stone
+[10]
+name: Stone
+phase: solid
+category: solids
+is_movable: false
+density: 55.0
+base_color: #7C7872
+blend_color: #5E5A55
+highlight_color: #5E5A55
+cohesion: 0
+repose_angle: 45
+
+# Wall
+[11]
+name: Wall
+phase: solid
+category: solids
+is_movable: false
+density: 154.0
+base_color: #9A9A9A
+blend_color: #7E7E7E
+highlight_color: #7E7E7E
+cohesion: 0
+repose_angle: 45
+
+# Wood
+[12]
+name: Wood
+phase: solid
+category: solids
+is_movable: false
+density: 32.0
+base_color: #9B6430
+blend_color: #70461F
+highlight_color: #70461F
+cohesion: 0
+repose_angle: 45
+
+# Metal
+[13]
+name: Metal
+phase: solid
+category: solids
+is_movable: false
+density: 86.0
+base_color: #B7B9C0
+blend_color: #8A8C91
+highlight_color: #8A8C91
+cohesion: 0
+repose_angle: 45
+
+# Ice
+[14]
+name: Ice
+phase: solid
+category: solids
+is_movable: false
+density: 69.0
+base_color: #C6E7F1
+blend_color: #A1D2E0
+highlight_color: #A1D2E0
+cohesion: 0
+repose_angle: 45
+
+# Glass
+[15]
+name: Glass
+phase: solid
+category: solids
+is_movable: false
+density: 120.0
+base_color: #A5E0E8
+blend_color: #79C6D0
+highlight_color: #79C6D0
+cohesion: 0
+repose_angle: 45
+
+## ------------------ LIQUIDS (100–199) ------------------ ##
+
+# Water
+[100]
+name: Water
+phase: liquid
+category: liquids
+is_movable: true
+density: 1.0
+base_color: #3BA9E0
+blend_color: #2A8AC0
+highlight_color: #2A8AC0
+cohesion: 0
+repose_angle: 45
+
+# Oil
+[101]
+name: Oil
+phase: liquid
+category: liquids
+is_movable: true
+density: 0.8
+base_color: #4B3A22
+blend_color: #3B2E1B
+highlight_color: #3B2E1B
+cohesion: 0
+repose_angle: 45
+
+# Lava
+[102]
+name: Lava
+phase: liquid
+category: liquids
+is_movable: true
+density: 3.5
+base_color: #FF6B1A
+blend_color: #D13A00
+highlight_color: #D13A00
+cohesion: 0
+repose_angle: 45
+
+# Mud
+[103]
+name: Mud
+phase: liquid
+category: liquids
+is_movable: true
+density: 1.5
+base_color: #7A4E26
+blend_color: #54361B
+highlight_color: #54361B
+cohesion: 0
+repose_angle: 45
+
+# Acid
+[104]
+name: Acid
+phase: liquid
+category: liquids
+is_movable: true
+density: 1.1
+base_color: #7EF14E
+blend_color: #5DC93A
+highlight_color: #5DC93A
+cohesion: 0
+repose_angle: 45
+
+# Alcohol
+[106]
+name: Alcohol
+phase: liquid
+category: liquids
+is_movable: true
+density: 0.78
+base_color: #D9F0FA
+blend_color: #CBE4F2
+highlight_color: #CBE4F2
+cohesion: 0
+repose_angle: 45
+
+## ------------------ GASES (200–299) ------------------ ##
+
+# Smoke
+[200]
+name: Smoke
+phase: gas
+category: gases
+is_movable: true
+density: 0.2
+base_color: #5A4740
+blend_color: #3E302A
+highlight_color: #3E302A
+cohesion: 0
+repose_angle: 45
+
+# Fire
+[201]
+name: Fire
+phase: gas
+category: gases
+is_movable: true
+density: 0.7
+base_color: #FF8C33
+blend_color: #E25822
+highlight_color: #E25822
+cohesion: 0
+repose_angle: 45
+
+# Steam
+[203]
+name: Steam
+phase: gas
+category: gases
+is_movable: true
+density: 0.5
+base_color: #DADADA
+blend_color: #B9B9B9
+highlight_color: #B9B9B9
+cohesion: 0
+repose_angle: 45
+
+## ------------------ SANDS (300–399) ------------------ ##
+
+# Sand
+[300]
+name: Sand
+phase: solid
+category: sands
+is_movable: true
+density: 2.0
+base_color: #E2C661
+blend_color: #C6A84D
+highlight_color: #C6A84D
+cohesion: 0
+repose_angle: 45.0
+
+# Dust
+[302]
+name: Dust
+phase: solid
+category: sands
+is_movable: true
+density: 1.0
+base_color: #CFCBB8
+blend_color: #BEB8A3
+highlight_color: #BEB8A3
+cohesion: 0
+repose_angle: 32.0
+
+# Gravel
+[303]
+name: Gravel
+phase: solid
+category: sands
+is_movable: true
+density: 4.0
+base_color: #6A635A
+blend_color: #3F3B35
+highlight_color: #3F3B35
+cohesion: 0
+repose_angle: 30.0
+
+# Volcanic Ash
+[304]
+name: Volcanic Ash
+phase: solid
+category: sands
+is_movable: true
+density: 1.5
+base_color: #474241
+blend_color: #2F2C2B
+highlight_color: #2F2C2B
+cohesion: 0
+repose_angle: 15.0
+
+# Coarse Gravel
+[305]
+name: Coarse Gravel
+phase: solid
+category: sands
+is_movable: true
+density: 2.7
+base_color: #7C7469
+blend_color: #686155
+highlight_color: #686155
+cohesion: 0
+repose_angle: 65.0
+
+# Quartz Sand
+[306]
+name: Quartz Sand
+phase: solid
+category: sands
+is_movable: true
+density: 2.3
+base_color: #E1E0DA
+blend_color: #CBC9C2
+highlight_color: #CBC9C2
+cohesion: 0
+repose_angle: 62.0

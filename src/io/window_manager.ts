@@ -1,8 +1,8 @@
-import type { Color, ContentBarOrientation, Index, Particle, ParticleData, ParticleMap, Size, Vector2 } from "../types";
-import type { BoggedState } from "../core/bogged_state";
+import type { Color, ContentBarOrientation, Index, Size, Vector2, Element } from "../types";
 import { Window } from "../io/window";
 import { WindowContent } from "../io/window_content";
 import { color } from "../structs/color_utils";
+import type { BogEngine } from "../core/bog_engine";
 
 export enum WindowType {
   Palette = 1,
@@ -12,18 +12,18 @@ export enum WindowType {
 
 export class WindowManager {
   // Dependencies and DOM elemements
+  private readonly bogEngine: BogEngine;
   private readonly host: HTMLDivElement;
-  private readonly boggedState: BoggedState;
 
   // Window instances
   private windows = new Map<WindowType, Window | null>();
 
   // Window specific properties
-  private selectedParticleButton: HTMLButtonElement | null = null;
+  private selectedElementButton: HTMLButtonElement | null = null;
 
-  constructor(hostEl: HTMLDivElement, boggedStateInstance: BoggedState) {
+  constructor(bogEngine: BogEngine, hostEl: HTMLDivElement) {
+    this.bogEngine = bogEngine;
     this.host = hostEl;
-    this.boggedState = boggedStateInstance;
 
     this.addWindowDropdownListener();
   }
@@ -139,48 +139,48 @@ export class WindowManager {
     };
     const addContentListener = (contentEl: HTMLDivElement, contentBarButtonEl: HTMLButtonElement, index: Index) => {
       contentBarButtonEl.addEventListener("click", () => {
-        // Content is the same, don't select a new particle button
-        if (this.boggedState.selectedCategoryId === index + 1) {
+        // Content is the same, don't select a new element button
+        if (this.bogEngine.getSelectedCategory() === index + 1) {
           return;
         }
 
         // Deselect previously selected button
-        if (this.selectedParticleButton) {
-          this.selectedParticleButton.classList.remove("selected");
+        if (this.selectedElementButton) {
+          this.selectedElementButton.classList.remove("selected");
         }
 
-        // Select the first particle button in this content
-        const firstParticleButtonEl = contentEl.querySelector<HTMLButtonElement>(".particle-button");
-        if (firstParticleButtonEl) {
-          firstParticleButtonEl.classList.add("selected");
-          this.selectedParticleButton = firstParticleButtonEl;
+        // Select the first element button in this content
+        const firstElementButtonEl = contentEl.querySelector<HTMLButtonElement>(".particle-button");
+        if (firstElementButtonEl) {
+          firstElementButtonEl.classList.add("selected");
+          this.selectedElementButton = firstElementButtonEl;
 
           // Update global states
-          this.boggedState.selectedParticleId = parseInt(firstParticleButtonEl.dataset.particleId || "0", 10);
-          this.boggedState.selectedCategoryId = parseInt(firstParticleButtonEl.dataset.category || "0", 10);
+          this.bogEngine.setSelectedParticle(parseInt(firstElementButtonEl.dataset.Id || "0", 10));
+          this.bogEngine.setSelectedCategory(parseInt(firstElementButtonEl.dataset.category || "0", 10));
         } else {
           // Update global states to 0 on fallbacc
-          this.boggedState.selectedParticleId = 0;
-          this.boggedState.selectedCategoryId = 0;
+          this.bogEngine.setSelectedParticle(0);
+          this.bogEngine.setSelectedCategory(0);
         }
       });
     };
-    const createParticleButton = (particle: ParticleData): HTMLButtonElement => {
+    const createElementButton = (element: Element): HTMLButtonElement => {
       const outButtonEl = document.createElement("button");
       outButtonEl.className = "particle-button";
-      outButtonEl.textContent = particle.name;
+      outButtonEl.textContent = element.name;
 
-      const chooseDark = color.getHexLuminance(particle.baseColor) > 210;
+      const chooseDark = color.getLuminance(element.baseColor) > 210;
       const textColor = chooseDark ? "#323238" : "#FFFFFF";
       const shadowColor = chooseDark ? "#FFFFFF" : "#323238";
-      outButtonEl.style.setProperty("--particle-button-base-color", particle.baseColor);
-      outButtonEl.style.setProperty("--particle-button-variant-color", particle.variantColor);
+      outButtonEl.style.setProperty("--particle-button-base-color", color.colorToHex(element.baseColor));
+      outButtonEl.style.setProperty("--particle-button-variant-color", color.colorToHex(element.highlightColor));
       outButtonEl.style.color = textColor;
       outButtonEl.style.textShadow = `1px 1px 2px rgba(${shadowColor[0]}, ${shadowColor[1]}, ${shadowColor[2]}, 0.6)`;
 
       // Create datasets for this button
-      outButtonEl.dataset.particleId = particle.id.toString();
-      outButtonEl.dataset.category = particle.category.toString();
+      outButtonEl.dataset.Id = element.id.toString();
+      outButtonEl.dataset.category = element.category.toString();
 
       return outButtonEl;
     };
@@ -212,49 +212,49 @@ export class WindowManager {
     const selectedCategory = 2;
     paletteWindow.displayContentAtIndex(selectedCategory - 1);
 
-    // Populate palette window's content with particle buttons
-    const particleData = this.boggedState.particleData;
+    // Populate palette window's content with element buttons
+    const elementDataMap = this.bogEngine.elementDataMap;
     let selectedParticleButtonEl: HTMLButtonElement | null = null;
-    for (const key in particleData) {
-      const particle = particleData[key]!;
+    for (const key in elementDataMap) {
+      const element = elementDataMap[key]!;
 
-      // Get content for this particle
-      const content = contents[particle.category - 1];
+      // Get content for this element
+      const content = contents[element.category - 1];
       if (!content) continue;
 
-      // Create a new particle button
-      const particleButtonEl = createParticleButton(particle);
+      // Create a new element button
+      const particleButtonEl = createElementButton(element);
 
-      // Add particle button event listener
+      // Add element button event listener
       particleButtonEl.addEventListener("click", () => {
         // Deselect previously selected button
-        if (this.selectedParticleButton) {
-          this.selectedParticleButton.classList.remove("selected");
+        if (this.selectedElementButton) {
+          this.selectedElementButton.classList.remove("selected");
         }
 
         // Select this button
         particleButtonEl.classList.add("selected");
-        this.selectedParticleButton = particleButtonEl;
+        this.selectedElementButton = particleButtonEl;
 
         // Update global states
-        this.boggedState.selectedParticleId = particle.id;
-        this.boggedState.selectedCategoryId = particle.category;
+        this.bogEngine.setSelectedParticle(element.id);
+        this.bogEngine.setSelectedCategory(element.category);
       });
 
       // Append it to it's content
       content.appendChild(particleButtonEl);
 
-      // Select the first particle with selected category
-      if (!selectedParticleButtonEl && particle.category === selectedCategory) {
+      // Select the first element with selected category
+      if (!selectedParticleButtonEl && element.category === selectedCategory) {
         selectedParticleButtonEl = particleButtonEl;
 
         // Select this button
         selectedParticleButtonEl.classList.add("selected");
-        this.selectedParticleButton = selectedParticleButtonEl;
+        this.selectedElementButton = selectedParticleButtonEl;
 
         // Update global states
-        this.boggedState.selectedParticleId = particle.id;
-        this.boggedState.selectedCategoryId = particle.category;
+        this.bogEngine.setSelectedParticle(element.id);
+        this.bogEngine.setSelectedCategory(element.category);
       }
     }
 
@@ -284,12 +284,8 @@ export class WindowManager {
     statsContentEl.appendChild(tpsStatEl);
 
     // Store references
-    const debugInstance = this.boggedState.debugInstance;
-    if (debugInstance) {
-      debugInstance.setStatsElements(fpsStatEl, tpsStatEl);
-    } else {
-      // ! todo: log error
-    }
+    const debugInstance = this.bogEngine.debug;
+    debugInstance.setStatsElements(fpsStatEl, tpsStatEl);
 
     return outWindow;
   }
@@ -306,59 +302,59 @@ export class WindowManager {
     const lookUpContent = new WindowContent();
     outWindow.addNewContent(lookUpContent.contentElement, "Look up", "./assets/icons/settings.svg");
 
-    // Customize the content
-    const dropperEl = lookUpContent.addDropperPanel("Select Particle");
-    lookUpContent.addSeparator(0);
-    lookUpContent.addSection("Properties:");
-    let nameEl = lookUpContent.addPropertyPanel("Name", "Undefined");
-    let colorEl = lookUpContent.addPropertyPanel("Color", "#000000");
-    let posEl = lookUpContent.addPropertyPanel("Position", "NaN");
-    let indexEl = lookUpContent.addPropertyPanel("Index", "NaN");
-    let handleEl = lookUpContent.addPropertyPanel("Handle", "NaN");
-    let idEl = lookUpContent.addPropertyPanel("Particle ID", "NaN");
-    let isMovableEl = lookUpContent.addPropertyPanel("Is Movable", "NaN");
-    let densityEl = lookUpContent.addPropertyPanel("Density", "NaN");
+    // // Customize the content
+    // const dropperEl = lookUpContent.addDropperPanel("Select Particle");
+    // lookUpContent.addSeparator(0);
+    // lookUpContent.addSection("Properties:");
+    // let nameEl = lookUpContent.addPropertyPanel("Name", "Undefined");
+    // let colorEl = lookUpContent.addPropertyPanel("Color", "#000000");
+    // let posEl = lookUpContent.addPropertyPanel("Position", "NaN");
+    // let indexEl = lookUpContent.addPropertyPanel("Index", "NaN");
+    // let handleEl = lookUpContent.addPropertyPanel("Handle", "NaN");
+    // let idEl = lookUpContent.addPropertyPanel("Particle ID", "NaN");
+    // let isMovableEl = lookUpContent.addPropertyPanel("Is Movable", "NaN");
+    // let densityEl = lookUpContent.addPropertyPanel("Density", "NaN");
 
-    // Add custom events
-    dropperEl.querySelector("button")?.addEventListener("click", () => {
-      if (this.boggedState.isInspectingParticle) {
-        this.boggedState.isInspectingParticle = false;
-      } else {
-        this.boggedState.canvasElement?.classList.add("cursor-picker");
-        this.boggedState.isInspectingParticle = true;
-      }
-    });
-    this.boggedState.canvasElement?.addEventListener("pointerdown", () => {
-      if (this.boggedState.isInspectingParticle) {
-        this.boggedState.canvasElement?.classList.remove("cursor-picker");
-        this.boggedState.isInspectingParticle = false;
-        const mouseX = this.boggedState.mouseX;
-        const mouseY = this.boggedState.mouseY;
-        const particle = this.boggedState.currentGrid?.getParticleAt(Math.floor(mouseX), Math.floor(mouseY));
-        if (particle) {
-          let handleVal = handleEl.querySelector("span");
-          if (handleVal) handleVal.textContent = particle.handle.toString();
-          let idVal = idEl.querySelector("span");
-          if (idVal) idVal.textContent = particle.id.toString();
-          let nameVal = nameEl.querySelector("span");
-          if (nameVal) nameVal.textContent = particle.name;
-          let colorVal = colorEl.querySelector("span");
-          if (colorVal) {
-            let colorHex = color.colorToHex(particle.color);
-            colorVal.textContent = colorHex;
-            colorVal.style.backgroundColor = colorHex;
-          }
-          let posVal = posEl.querySelector("span");
-          if (posVal) posVal.textContent = `X: ${particle.position.x},Y: ${particle.position.y}`;
-          let indexVal = indexEl.querySelector("span");
-          if (indexVal) indexVal.textContent = particle.index.toString();
-          let isMovableVal = isMovableEl.querySelector("span");
-          if (isMovableVal) isMovableVal.textContent = particle.isMovable.toString();
-          let densityVal = densityEl.querySelector("span");
-          if (densityVal) densityVal.textContent = particle.density.toString();
-        }
-      }
-    });
+    // // Add custom events
+    // dropperEl.querySelector("button")?.addEventListener("click", () => {
+    //   if (this.boggedState.isInspectingParticle) {
+    //     this.boggedState.isInspectingParticle = false;
+    //   } else {
+    //     this.boggedState.canvasElement?.classList.add("cursor-picker");
+    //     this.boggedState.isInspectingParticle = true;
+    //   }
+    // });
+    // this.boggedState.canvasElement?.addEventListener("pointerdown", () => {
+    //   if (this.boggedState.isInspectingParticle) {
+    //     this.boggedState.canvasElement?.classList.remove("cursor-picker");
+    //     this.boggedState.isInspectingParticle = false;
+    //     const mouseX = this.boggedState.mouseX;
+    //     const mouseY = this.boggedState.mouseY;
+    //     const particle = this.boggedState.currentGrid?.getParticleAt(Math.floor(mouseX), Math.floor(mouseY));
+    //     if (particle) {
+    //       let handleVal = handleEl.querySelector("span");
+    //       if (handleVal) handleVal.textContent = particle.handle.toString();
+    //       let idVal = idEl.querySelector("span");
+    //       if (idVal) idVal.textContent = particle.id.toString();
+    //       let nameVal = nameEl.querySelector("span");
+    //       if (nameVal) nameVal.textContent = particle.name;
+    //       let colorVal = colorEl.querySelector("span");
+    //       if (colorVal) {
+    //         let colorHex = color.colorToHex(particle.color);
+    //         colorVal.textContent = colorHex;
+    //         colorVal.style.backgroundColor = colorHex;
+    //       }
+    //       let posVal = posEl.querySelector("span");
+    //       if (posVal) posVal.textContent = `X: ${particle.position.x},Y: ${particle.position.y}`;
+    //       let indexVal = indexEl.querySelector("span");
+    //       if (indexVal) indexVal.textContent = particle.index.toString();
+    //       let isMovableVal = isMovableEl.querySelector("span");
+    //       if (isMovableVal) isMovableVal.textContent = particle.isMovable.toString();
+    //       let densityVal = densityEl.querySelector("span");
+    //       if (densityVal) densityVal.textContent = particle.density.toString();
+    //     }
+    //   }
+    // });
 
     return outWindow;
   }

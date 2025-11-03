@@ -1,54 +1,55 @@
-import type { BoggedState } from "../core/bogged_state";
+import type { BogEngine } from "../core/bog_engine";
 import type { Particle, Color, Pixel } from "../types";
 
 export class Renderer {
-  // Dependencies & DOM References
-  private readonly boggedState: BoggedState;
-  private readonly canvas: HTMLCanvasElement;
+  // Dependencies
+  private readonly bogEngine: BogEngine;
   private readonly ctx: CanvasRenderingContext2D;
 
-  // Render variables
+  // Internal States
   private frameBuffer: Uint8ClampedArray;
-  private queuedParticles: Particle[];
-  private queuedOverlayPixels: Pixel[];
-  private queuedUIPixels: Pixel[];
+  private queuedParticles: Particle[] = [];
+  private queuedOverlayPixels: Pixel[] = [];
 
-  constructor(boggedStateInstance: BoggedState, canvas: HTMLCanvasElement) {
-    this.boggedState = boggedStateInstance;
-    this.canvas = canvas;
-    this.ctx = this.canvas.getContext("2d") as CanvasRenderingContext2D;
+  constructor(bogEngine: BogEngine, canvasEl: HTMLCanvasElement, width: number, height: number) {
+    this.bogEngine = bogEngine;
+    this.ctx = canvasEl.getContext("2d") as CanvasRenderingContext2D;
+    this.frameBuffer = new Uint8ClampedArray(width * height * 4);
+  }
 
-    this.frameBuffer = new Uint8ClampedArray(this.boggedState.gameWidth * this.boggedState.gameHeight * 4);
-    this.queuedParticles = [];
+  public renderThisFrame() {
+    // Draw brush outline
+    const brushOutline = this.getBrushOutline();
+
+    // Proccess queued particles this frame
+    this.processQueuedParticles();
+
+    // Add overlay data
+    let postProcessFrameBuffer: Uint8ClampedArray = new Uint8ClampedArray(this.frameBuffer);
+    this.addBuffer(postProcessFrameBuffer, this.queuedOverlayPixels);
+    this.addBuffer(postProcessFrameBuffer, brushOutline);
+
+    // Push the final buffer
+    const imageData: ImageData = new ImageData(
+      postProcessFrameBuffer as ImageDataArray,
+      this.bogEngine.gameWidth,
+      this.bogEngine.gameHeight
+    );
+    this.ctx.putImageData(imageData, 0, 0);
+
+    // Clear any rendering data related to this frame
+    this.queuedParticles.length = 0;
     this.queuedOverlayPixels = [];
-    this.queuedUIPixels = [];
-
-    // Initialise HTML elements
-    this.canvas.style.aspectRatio = (this.boggedState.gameWidth / this.boggedState.gameHeight).toString();
-    this.canvas.width = this.boggedState.gameWidth;
-    this.canvas.height = this.boggedState.gameHeight;
-    this.ctx.imageSmoothingEnabled = false;
-    this.ctx.translate(0, this.canvas.height);
-    this.ctx.scale(1, -1);
   }
 
-  // ..
-  public queueUIPixels(pixelsToQueue: Pixel[]) {
-    // Clear previous pixels
-    this.queuedUIPixels = [];
-
-    this.queuedUIPixels = pixelsToQueue;
-  }
-
-  // ..
-  public queueParticles(particlesToQueue: Set<Particle> | Particle[], debugOverlayColor?: Color) {
-    // Queue particles to be processed later by the renderer loop
+  public queueParticles(particlesToQueue: Set<Particle> | Particle[], showAsDebug?: boolean, debugOverlayColor?: Color) {
+    // Queue particles to be processed later by the rendering loop
     this.queuedParticles.push(...particlesToQueue);
 
-    // Handle debug overlay
-    if (debugOverlayColor) {
-      const width: number = this.boggedState.gameWidth;
-      const height: number = this.boggedState.gameHeight;
+    // Show these particles as debug
+    if (showAsDebug && debugOverlayColor) {
+      const width: number = this.bogEngine.gameWidth;
+      const height: number = this.bogEngine.gameHeight;
       for (const particle of particlesToQueue) {
         const flippedY: number = height - 1 - particle.position.y;
         const index: number = flippedY * width + particle.position.x;
@@ -57,45 +58,14 @@ export class Renderer {
     }
   }
 
-  // ..
   public queueOverlayPixels(pixelsToQueue: Pixel[]) {
     this.queuedOverlayPixels.push(...pixelsToQueue);
   }
 
-  // ..
-  public renderThisFrame() {
-    // Draw brush outline on the canvas
-    if (this.boggedState.isBrushOutlineVisible) {
-      const brushOutline = this.getBrushOutline(Math.floor(this.boggedState.mouseX), Math.floor(this.boggedState.mouseY));
-      this.queuedUIPixels = brushOutline;
-    }
-
-    // Proccess queued particles this frame
-    this.processQueuedParticles();
-
-    // Add overlay data
-    let postProcessFrameBuffer: Uint8ClampedArray = new Uint8ClampedArray(this.frameBuffer);
-    this.addBuffer(postProcessFrameBuffer, this.queuedOverlayPixels);
-    this.addBuffer(postProcessFrameBuffer, this.queuedUIPixels);
-
-    // Push the final buffer
-    const imageData: ImageData = new ImageData(
-      postProcessFrameBuffer as ImageDataArray,
-      this.boggedState.gameWidth,
-      this.boggedState.gameHeight
-    );
-    this.ctx.putImageData(imageData, 0, 0);
-
-    // Clear any rendering data related to this frame
-    this.queuedParticles.length = 0;
-    this.queuedOverlayPixels = [];
-    this.queuedUIPixels = [];
-  }
-
   private processQueuedParticles() {
     const particlesToProcess: Particle[] = this.queuedParticles;
-    const width: number = this.boggedState.gameWidth;
-    const height: number = this.boggedState.gameHeight;
+    const width: number = this.bogEngine.gameWidth;
+    const height: number = this.bogEngine.gameHeight;
 
     for (const particle of particlesToProcess) {
       const particleX: number = particle.position.x;
@@ -148,16 +118,20 @@ export class Renderer {
   }
 
   // Function to generate the overlay map for the circle outline
-  private getBrushOutline(centerX: number, centerY: number): Pixel[] {
-    const radius: number = this.boggedState.currentBrushSize;
-    const pixels: Pixel[] = [];
-    const r: number = 227;
-    const g: number = 227;
-    const b: number = 227;
-    const a: number = 180;
+  private getBrushOutline(): Pixel[] {
+    const radius = this.bogEngine.getBrushSize();
+    const mousePos = this.bogEngine.getMousePosition();
 
-    const width: number = this.boggedState.gameWidth;
-    const height: number = this.boggedState.gameHeight;
+    const centerX = mousePos.x;
+    const centerY = mousePos.y;
+    const pixels: Pixel[] = [];
+    const r = 227;
+    const g = 227;
+    const b = 227;
+    const a = 180;
+
+    const width = this.bogEngine.gameWidth;
+    const height = this.bogEngine.gameHeight;
     const offsets: number[] = [-1, 1];
 
     const plotOctets = (x: number, y: number) => {
