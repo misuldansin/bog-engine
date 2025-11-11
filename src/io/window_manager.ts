@@ -1,4 +1,4 @@
-import type { Color, ContentBarOrientation, Index, Size, Vector2, Element } from "../types";
+import type { Color, ContentBarOrientation, Index, Size, Vector2, ParticleData } from "../types";
 import { Window } from "../io/window";
 import { WindowContent } from "../io/window_content";
 import { color } from "../structs/color_utils";
@@ -165,22 +165,22 @@ export class WindowManager {
         }
       });
     };
-    const createElementButton = (element: Element): HTMLButtonElement => {
+    const createElementButton = (particle: ParticleData): HTMLButtonElement => {
       const outButtonEl = document.createElement("button");
       outButtonEl.className = "particle-button";
-      outButtonEl.textContent = element.name;
+      outButtonEl.textContent = particle.name;
 
-      const chooseDark = color.getLuminance(element.baseColor) > 210;
+      const chooseDark = color.getLuminance(particle.baseColor) > 210;
       const textColor = chooseDark ? "#323238" : "#FFFFFF";
       const shadowColor = chooseDark ? "#FFFFFF" : "#323238";
-      outButtonEl.style.setProperty("--particle-button-base-color", color.colorToHex(element.baseColor));
-      outButtonEl.style.setProperty("--particle-button-variant-color", color.colorToHex(element.highlightColor));
+      outButtonEl.style.setProperty("--particle-button-base-color", color.colorToHex(particle.baseColor));
+      outButtonEl.style.setProperty("--particle-button-variant-color", color.colorToHex(particle.highlightColor));
       outButtonEl.style.color = textColor;
       outButtonEl.style.textShadow = `1px 1px 2px rgba(${shadowColor[0]}, ${shadowColor[1]}, ${shadowColor[2]}, 0.6)`;
 
       // Create datasets for this button
-      outButtonEl.dataset.Id = element.id.toString();
-      outButtonEl.dataset.category = element.category.toString();
+      outButtonEl.dataset.Id = particle.id.toString();
+      outButtonEl.dataset.category = particle.category.toString();
 
       return outButtonEl;
     };
@@ -209,14 +209,14 @@ export class WindowManager {
     paletteWindow.setContentBarOrientation("bottom");
 
     // Select liquids content
-    const selectedCategory = 2;
+    const selectedCategory = 4;
     paletteWindow.displayContentAtIndex(selectedCategory - 1);
 
     // Populate palette window's content with element buttons
-    const elementDataMap = this.bogEngine.elementDataMap;
+    const elementsMap = this.bogEngine.particleData;
     let selectedParticleButtonEl: HTMLButtonElement | null = null;
-    for (const key in elementDataMap) {
-      const element = elementDataMap[key]!;
+    for (const key in elementsMap) {
+      const element = elementsMap[key]!;
 
       // Get content for this element
       const content = contents[element.category - 1];
@@ -245,12 +245,11 @@ export class WindowManager {
       content.appendChild(particleButtonEl);
 
       // Select the first element with selected category
-      if (!selectedParticleButtonEl && element.category === selectedCategory) {
-        selectedParticleButtonEl = particleButtonEl;
+      if (!this.selectedElementButton && element.category === selectedCategory) {
+        this.selectedElementButton = particleButtonEl;
 
         // Select this button
-        selectedParticleButtonEl.classList.add("selected");
-        this.selectedElementButton = selectedParticleButtonEl;
+        this.selectedElementButton.classList.add("selected");
 
         // Update global states
         this.bogEngine.setSelectedParticle(element.id);

@@ -1,14 +1,14 @@
-import type { Category, Element, Phase } from "./types";
+import type { Category, ParticleData, Phase } from "./types";
 import { Categories, Phases, Utilities } from "./structs/utils";
 import { GameSettings } from "./settings";
 import { color } from "./structs/color_utils";
 
-// Loads elements data from a text file and returns them as particle data map
-export async function loadElements(filePath: string): Promise<Record<number, Element>> {
+// Loads particle data from a text file and returns them as particle data map
+export async function loadParticleData(filePath: string): Promise<Record<number, ParticleData>> {
   // Retrieve text file from the given file path
   const fileText: string = await getFileText(filePath);
 
-  const rawData: Record<number, Element> = {};
+  const rawData: Record<number, ParticleData> = {};
   const processedIds = new Set<number>();
   let currentId: number | null = null;
 
@@ -112,7 +112,7 @@ export async function loadElements(filePath: string): Promise<Record<number, Ele
   }
 
   // Checksum
-  const outData: Record<number, Element> = {};
+  const outData: Record<number, ParticleData> = {};
 
   // Add all raw data to out data, raw data with missing properties are gracefully, swiftly, respectfully (not really) ignored
   for (const id in rawData) {

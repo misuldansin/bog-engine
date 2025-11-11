@@ -10,7 +10,7 @@ engine.render_interval: 16.667
 engine.physics_interval: 25
 
 # Input
-input.brush_size: 4
+input.brush_size: 8
 input.brush_max_size: 42
 input.brush_sensitivity: 0.02
 

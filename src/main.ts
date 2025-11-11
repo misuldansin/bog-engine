@@ -1,4 +1,4 @@
-import { loadElements, loadSettings } from "./loader";
+import { loadParticleData, loadSettings } from "./loader";
 import { BogEngine } from "./core/bog_engine";
 
 async function initialize(): Promise<void> {
@@ -7,10 +7,10 @@ async function initialize(): Promise<void> {
     const settings = await loadSettings("./src/data/settings.data");
 
     // Load particle data
-    const particleDataMap = await loadElements("./src/data/elements.data");
+    const particleData = await loadParticleData("./src/data/particle.data");
 
     // Initialise engine
-    const bogEngine = new BogEngine(settings, particleDataMap);
+    const bogEngine = new BogEngine(settings, particleData);
 
     // ..
   } catch (error) {

@@ -31,6 +31,10 @@ export class UIManager {
     ctx.imageSmoothingEnabled = false;
     ctx.translate(0, height);
     ctx.scale(1, -1);
+    ctx.transform(1, 0, 0, -1, 0, canvasEl.height);
+
+    // Display palette window on startup
+    windowManager.openWindow(WindowType.Palette);
   }
 
   private setupAppMenu(appMenuEl: HTMLDivElement) {

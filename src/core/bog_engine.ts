@@ -1,4 +1,4 @@
-import type { Index, Element, Particle, Offset2, Category, Vector2 } from "../types";
+import type { Index, Particle, Offset2, Category, Vector2, Phase, ParticleData } from "../types";
 import { GameSettings } from "../settings";
 import { Renderer } from "../io/renderer";
 import { InputManager } from "../io/inputManager";
@@ -25,11 +25,14 @@ export class BogEngine {
   private currentBrushSize!: number;
   private mouseX: number = 0;
   private mouseY: number = 0;
+  private prevMouseX: number = 0;
+  private prevMouseY: number = 0;
   private isCanvasHovered: boolean = false;
 
-  // World
-  private worldGrid: Particle[];
-  private dirtyParticles: Set<Index>;
+  // Da World 🤌
+  private particles: Particle[];
+  private colors: Uint8ClampedArray;
+  private dirtyParticles: Set<Index> = new Set();
   private particlesProcessed: Set<Index> = new Set();
 
   // Components (a.k.a top dawgs)
@@ -37,7 +40,7 @@ export class BogEngine {
   public readonly viewportElement: HTMLDivElement;
   public readonly canvasElement: HTMLCanvasElement;
 
-  public readonly elementDataMap: Record<number, Element>;
+  public readonly particleData: Record<number, ParticleData>;
   public readonly renderer: Renderer;
   public readonly windowManager: WindowManager;
   public readonly uiManager: UIManager;
@@ -48,25 +51,37 @@ export class BogEngine {
   private isRunning: boolean = false;
   private animationFrameId: number | null = null;
   private accumulator: number = 0;
+  private renderAccumulator: number = 0;
   private lastFrameTime: number = 0;
   private tickCount: number = 0;
 
-  constructor(settings: typeof GameSettings, elementDataMap: Record<number, Element>) {
+  constructor(settings: typeof GameSettings, particleData: Record<number, ParticleData>) {
     // Apply settings
     this.applySettings(settings);
 
     // Populate variables
-    const gridSize = this.gameWidth * this.gameHeight;
-    this.elementDataMap = elementDataMap;
-    this.worldGrid = this.getPopulatedGrid(0, this.gameWidth, this.gameHeight);
-    this.dirtyParticles = new Set();
-    for (let i = 0; i < gridSize; i++) this.dirtyParticles.add(i);
+    this.particleData = particleData;
+    Object.freeze(this.particleData);
+
+    const width = this.gameWidth;
+    const height = this.gameHeight;
+    const gridSize = width * height;
+
+    this.particles = [];
+    this.colors = new Uint8ClampedArray(gridSize * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        this.createParticleAt(x, y, this.particleData[0]!);
+      }
+    }
+
+    // Get DOM elements
     this.appMenuElement = this.getElement<HTMLDivElement>("app-menu", HTMLDivElement);
     this.viewportElement = this.getElement<HTMLDivElement>("viewport", HTMLDivElement);
     this.canvasElement = this.getElement<HTMLCanvasElement>("render-surface", HTMLCanvasElement);
 
     // Initalise renderer
-    this.renderer = new Renderer(this, this.canvasElement, this.gameWidth, this.gameHeight);
+    this.renderer = new Renderer(this, this.canvasElement);
 
     // Initialise window manager
     this.windowManager = new WindowManager(this, this.viewportElement);
@@ -84,8 +99,7 @@ export class BogEngine {
     this.start();
 
     // ! temp: ..
-    console.log(this.elementDataMap);
-    this.selectedParticleId = 10;
+    console.log(this.particleData);
   }
 
   public getSelectedParticle(): number {
@@ -135,176 +149,141 @@ export class BogEngine {
     (this.currentBrushSize as number) = settings.brushSize;
   }
 
-  private getPopulatedGrid(elementId: number, width: number, height: number): Particle[] {
-    const outGrid = new Array<Particle>(width * height);
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const index = y * width + x;
-
-        // Create new particle
-        let newParticle: Particle = this.createParticle(elementId);
-
-        // Update newly created particle's states
-        newParticle.position.x = x;
-        newParticle.position.y = y;
-        newParticle.index = index;
-
-        // Add it to the data array
-        outGrid[index] = newParticle;
-      }
-    }
-    return outGrid;
-  }
-
-  private createParticle(elementId: number): Particle {
-    // Retrieve element data
-    let data: Element | undefined = this.elementDataMap[elementId];
-
-    // If no element with id exists, load the default EMPTY element's data
-    if (!data) {
-      data = this.elementDataMap[0]!;
-    }
-
-    // Create particle's primary element
-    const element = { ...data };
-
-    // Calculate particle's color from it's primary element's three colors
-    let resolution: number = 6;
-    let steps: number = resolution - 1;
-    let t: number = Math.round(Math.random() * steps) / steps;
-    const newColor = color.lerpColor(element.baseColor, element.highlightColor, t);
-
-    return {
-      position: { x: -1, y: -1 },
-      index: 0,
-      color: newColor,
-      category: element.category,
-      primary: element,
-      secondary: null,
-
-      phase: element.phase,
-      mass: element.density,
-      temperature: 21.0,
-    };
-  }
-
   // ========================================================
   // ------------------ Grid Functions ----------------------
-
   // ! Todo: Store particle ID sumwhere in the future so it's not just a 'number'
-  private createParticleAt(x: number, y: number, elementId: number, markDirty: boolean, markNeighborDirty: boolean): boolean {
-    // Particle to create is out of bounds, don't create
-    if (!this.isInBounds(x, y)) {
-      return false;
-    }
-
-    // Create a new particle
-    let particle = this.createParticle(elementId);
-
-    // Update newly created particle's states
-    particle.position.x = x;
-    particle.position.y = y;
-    particle.index = y * this.gameWidth + x;
-
-    // Handle dirty
-    if (markDirty) {
-      this.markDirty(particle, markNeighborDirty);
-    }
-
-    // Add the newly created particle to the grid
-    this.worldGrid![y * this.gameWidth + x] = particle;
-
-    // Particle was successfully created, return true
-    return true;
-  }
-
-  private getParticleAt(x: number, y: number): Particle | null {
-    if (!this.isInBounds(x, y)) return null;
-    return this.worldGrid[y * this.gameWidth + x]!;
-  }
-
-  private getNeighborOf(particle: Particle, offset: Offset2): Particle | null {
-    const neighborX: number = particle.position.x + offset.dx;
-    const neighborY: number = particle.position.y + offset.dy;
-    return this.getParticleAt(neighborX, neighborY);
-  }
-
-  private getNeighborsOf(particle: Particle, offsets: Offset2[], withCategory?: Category, withId?: number): Particle[] {
-    // Get all valid neighbors
-    const allNeighbors = offsets
-      .map((offset) => this.getNeighborOf(particle, offset))
-      .filter((neighbor): neighbor is Particle => neighbor !== null);
-
-    // Apply filtering and return
-    return allNeighbors.filter((neighbor) => {
-      const categoryMatches = withCategory === undefined || neighbor.category === withCategory;
-      const idMatches = withId === undefined || neighbor.primary.id === withId || (neighbor.secondary && neighbor.secondary.id === withId);
-      return categoryMatches && idMatches;
-    });
-  }
-
-  private markDirty(particle: Particle, markNeighborDirty: boolean) {
-    // Mark this particle dirty
-    this.dirtyParticles.add(particle.index);
-
-    // Handle marking neighbors dirty
-    if (markNeighborDirty) {
-      const neighbors: Particle[] = this.getNeighborsOf(particle, NEIGHBORHOOD.ALL_NEIGHBORS);
-      for (const neighbor of neighbors) {
-        this.dirtyParticles.add(neighbor.index);
-      }
-    }
-  }
 
   private isInBounds(x: number, y: number): boolean {
     return x >= 0 && x < this.gameWidth && y >= 0 && y < this.gameHeight;
   }
 
-  private fillCircleAt(x: number, y: number, radius: number, particleId: number) {
-    for (let i = -radius; i <= radius; i++) {
-      for (let j = -radius; j <= radius; j++) {
-        // Don't draw outside the given radius
-        if (i * i + j * j > radius * radius) {
-          continue;
-        }
+  private createParticleAt(x: number, y: number, particleData: ParticleData) {
+    // Particle to create is out of grid's bounds, return
+    if (!this.isInBounds(x, y)) return false;
 
-        // Particle location to draw
-        const px: number = x + i;
-        const py: number = y + j;
+    const width = this.gameWidth;
+    const index = y * width + x;
 
-        // Particle to draw is out of grid's bounds, skip
-        if (!this.isInBounds(px, py)) {
-          continue;
-        }
+    // Update grid properties
+    this.particles[index] = {
+      data: particleData, // ! temp: ->
+      position: { x: x, y: y },
+      velocity: { x: 0, y: 0 },
+    };
 
-        // Get previous particle to compare it
-        const prevParticle: Particle | null = this.getParticleAt(px, py);
-        if (particleId === 0 || prevParticle === null || prevParticle.primary.id === 0) {
-          this.createParticleAt(px, py, particleId, true, true);
-        }
+    const colorIndex = index * 4;
+    const randomColor = color.lerpColor(particleData.baseColor, particleData.highlightColor, Math.round(Math.random() * 5) / 4);
+    this.colors[colorIndex + 0] = randomColor[0];
+    this.colors[colorIndex + 1] = randomColor[1];
+    this.colors[colorIndex + 2] = randomColor[2];
+    this.colors[colorIndex + 3] = randomColor[3];
+
+    // Mark it dirty
+    this.markDirty(x, y, true);
+  }
+
+  private getParticleAt(x: number, y: number): Particle | undefined {
+    if (!this.isInBounds(x, y)) return undefined;
+    return this.particles[y * this.gameWidth + x];
+  }
+
+  private getNeighborAt(x: number, y: number, offset: Offset2): Particle | undefined {
+    const neighborX: number = x + offset.dx;
+    const neighborY: number = y + offset.dy;
+    return this.getParticleAt(neighborX, neighborY);
+  }
+
+  private getNeighborsAt(x: number, y: number, offsets: Offset2[], withCategory?: Category, withId?: number): Particle[] {
+    // Get all valid neighbors
+    const outNeighbors: Particle[] = [];
+    for (const offset of offsets) {
+      const particle = this.getNeighborAt(x, y, offset);
+      if (particle) outNeighbors.push(particle);
+    }
+
+    // Apply filtering and return
+    return outNeighbors.filter((neighbor) => {
+      const categoryMatches = withCategory === undefined || neighbor.data.category === withCategory;
+      const idMatches = withId === undefined || neighbor.data.id === withId;
+      return categoryMatches && idMatches;
+    });
+  }
+
+  private markDirty(x: number, y: number, markNeighborDirty: boolean) {
+    // Mark this particle dirty
+    this.dirtyParticles.add(y * this.gameWidth + x);
+
+    // Handle marking neighbors dirty
+    if (markNeighborDirty) {
+      const neighbors: Particle[] = this.getNeighborsAt(x, y, NEIGHBORHOOD.ALL_NEIGHBORS);
+      for (const neighbor of neighbors) {
+        this.dirtyParticles.add(neighbor.position.y * this.gameWidth + neighbor.position.x);
       }
     }
   }
 
-  private swapParticles(particleA: Particle, particleB: Particle, markAsDirty: boolean, markNeighborsAsDirty: boolean) {
-    // Swap particles in the data array
-    this.worldGrid[particleA.index] = particleB;
-    this.worldGrid[particleB.index] = particleA;
+  private interFillCircleAt(x1: number, y1: number, x2: number, y2: number, radius: number, particleData: ParticleData) {
+    const visitedList: Set<Index> = new Set();
+    this.getPathBetween(x1, y1, x2, y2).forEach((pos) => this.fillCircleAt(pos.x, pos.y, radius, particleData, visitedList));
+  }
 
-    // Update their postion and indices
-    const tempPosition = { x: particleA.position.x, y: particleA.position.y };
-    const tempIndex = particleA.index;
+  private getPathBetween(x1: number, y1: number, x2: number, y2: number): Vector2[] {
+    const outPositions: Vector2[] = [];
 
-    particleA.position = particleB.position;
-    particleA.index = particleB.index;
+    let xDir = x1 < x2 ? 1 : -1;
+    let yDir = y1 < y2 ? 1 : -1;
+    let xDelta = Math.abs(x2 - x1);
+    let yDelta = Math.abs(y2 - y1);
 
-    particleB.position = tempPosition;
-    particleB.index = tempIndex;
+    let isSteep = yDelta > xDelta;
+    if (isSteep) [xDelta, yDelta] = [yDelta, xDelta];
 
-    // Mark them as dirty
-    if (markAsDirty) {
-      this.markDirty(particleA, markNeighborsAsDirty);
-      this.markDirty(particleB, markNeighborsAsDirty);
+    let err = 2 * yDelta - xDelta;
+    let xCur = x1;
+    let yCur = y1;
+
+    for (let i = 0; i <= xDelta; i++) {
+      outPositions.push({ x: xCur, y: yCur });
+
+      if (err >= 0) {
+        err = err - 2 * xDelta;
+        if (isSteep) xCur = xCur + xDir;
+        else yCur = yCur + yDir;
+      }
+
+      err = err + 2 * yDelta;
+      if (isSteep) yCur = yCur + yDir;
+      else xCur = xCur + xDir;
+    }
+
+    return outPositions;
+  }
+
+  private fillCircleAt(x: number, y: number, radius: number, particleData: ParticleData, visitedList: Set<Index>) {
+    for (let i = -radius; i <= radius; i++) {
+      for (let j = -radius; j <= radius; j++) {
+        // Radius bounds
+        if (i * i + j * j > radius * radius) continue;
+
+        const px: number = x + i;
+        const py: number = y + j;
+        const index = py * this.gameWidth + px;
+
+        // Has already visited
+        if (visitedList.has(index)) continue;
+        visitedList.add(index);
+
+        // Grid bounds
+        if (!this.isInBounds(px, py)) continue;
+
+        // Draw
+        const isErasing = particleData.id === 0;
+        const prevParticle: Particle | undefined = this.particles[py * this.gameWidth + px];
+        const isPrevParticleDead = prevParticle === undefined || prevParticle.data.id === 0;
+        if (isErasing || isPrevParticleDead) {
+          this.createParticleAt(px, py, particleData);
+        }
+      }
     }
   }
 
@@ -328,40 +307,41 @@ export class BogEngine {
   }
 
   private gameLoop = (timestamp: number) => {
-    if (!this.isRunning) {
-      return;
-    }
+    if (!this.isRunning) return;
 
-    if (this.lastFrameTime === 0) {
-      this.lastFrameTime = timestamp;
-    }
     const delta = timestamp - this.lastFrameTime;
     this.lastFrameTime = timestamp;
 
-    // ------- Update stats -------
-    // this.debug.updateDisplay(timestamp);
+    this.renderAccumulator += delta;
 
-    // ------- Handle Input -------
-    this.handleInput();
+    if (this.renderAccumulator >= this.renderInterval) {
+      this.renderAccumulator -= this.renderInterval;
 
-    // ------ Update Physics ------
-    this.accumulator += delta;
-    let stepsTaken = 0;
-    while (this.accumulator >= this.physicsInterval) {
-      this.stepPhysics();
+      // ------- Update stats -------
+      this.debug.updateDisplay(timestamp);
 
-      stepsTaken++;
-      this.tickCount++;
-      this.accumulator -= this.physicsInterval;
+      // ------- Handle Input -------
+      this.handleInput();
 
-      if (stepsTaken > 60) {
-        this.accumulator = 0;
-        break;
+      // ------ Update Physics ------
+      this.accumulator += delta;
+      let stepsTaken = 0;
+      while (this.accumulator >= this.physicsInterval) {
+        this.stepPhysics();
+
+        stepsTaken++;
+        this.tickCount++;
+        this.accumulator -= this.physicsInterval;
+
+        if (stepsTaken > 20) {
+          this.accumulator = 0;
+          break;
+        }
       }
-    }
 
-    // ------ Render This Frame ------
-    this.renderer.renderThisFrame();
+      // ------ Render This Frame ------
+      this.renderer.renderThisFrame(this.colors, this.isCanvasHovered);
+    }
 
     // Continue the loop
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
@@ -379,8 +359,10 @@ export class BogEngine {
     this.inputManager.rawScrollDeltaY = 0;
 
     // Update internal states
+    this.prevMouseX = this.mouseX;
+    this.prevMouseY = this.mouseY;
     this.mouseX = Math.floor((rawClientX - canvasRectLeft) * scaleFactorX);
-    this.mouseY = Math.floor(this.gameHeight - (rawClientY - canvasRectTop) * scaleFactorY);
+    this.mouseY = Math.floor((rawClientY - canvasRectTop) * scaleFactorY);
     this.currentBrushSize = Math.max(0, Math.min(this.currentBrushSize - rawScrollDeltaY * this.brushSensitivity, this.brushMaxSize));
     this.isCanvasHovered = this.inputManager.isCanvasHovered;
 
@@ -389,39 +371,41 @@ export class BogEngine {
     const isErasing = this.inputManager.isSecondaryButtonDown;
 
     if (isErasing) {
-      this.fillCircleAt(this.mouseX, this.mouseY, this.currentBrushSize, 0);
+      this.interFillCircleAt(this.mouseX, this.mouseY, this.prevMouseX, this.prevMouseY, this.currentBrushSize, this.particleData[0]!);
     } else if (isPainting) {
-      this.fillCircleAt(this.mouseX, this.mouseY, this.currentBrushSize, this.selectedParticleId);
+      const particleData = this.particleData[this.selectedParticleId];
+      if (particleData)
+        this.interFillCircleAt(this.mouseX, this.mouseY, this.prevMouseX, this.prevMouseY, this.currentBrushSize, particleData);
     }
   }
 
   private stepPhysics() {
-    // Get particles to update this frame
-    let particlesToUpdate: Particle[] = [];
-    for (const index of this.dirtyParticles) {
-      particlesToUpdate.push(this.worldGrid[index]!);
+    // Get particle indices to update this frame
+    let particlesToUpdate: number[] = [];
+    for (let y = 0; y < this.gameHeight; y++) {
+      for (let x = 0; x < this.gameWidth; x++) {
+        particlesToUpdate.push(y * this.gameWidth + x);
+      }
     }
 
     // Clear dirty particles
     this.dirtyParticles.clear();
 
-    // Clear particles processed array and current grid's dirty particles to initialise for the next part
-    this.particlesProcessed.clear();
-
     // Shuffle the entire list to randomize the horizontal order
     particlesToUpdate = Utilities.shuffleArray(particlesToUpdate);
 
     // Sort from bottom to top (y-coordinate)
-    particlesToUpdate.sort((particleA, particleB) => particleA.position.y - particleB.position.y);
+    // index = y * width + x
+    // y = floor(index / width)
+    particlesToUpdate.sort((indexA, indexB) => Math.floor(indexA / this.gameWidth) - Math.floor(indexB / this.gameWidth));
 
     // Loop through previous dirty particles and update them
-    for (const particle of particlesToUpdate) {
-      if (!particle) continue; // If particle is null, don't bother
-
+    this.particlesProcessed.clear();
+    for (const index of particlesToUpdate) {
       // If the particle was already processed this frame, don't bother
-      if (this.particlesProcessed.has(particle.index)) continue;
+      if (this.particlesProcessed.has(index)) continue;
 
-      switch (particle.category) {
+      switch (this.particles[index]!.data.category) {
         case Categories.SOLIDS:
           // Handle Solids
           break;
@@ -433,6 +417,8 @@ export class BogEngine {
           break;
         case Categories.SANDS:
           // Handle Sands
+          // this.handleSands(index);
+          this.handleSands(index);
           break;
         case Categories.ELECTRONICS:
           // Handle Electronics
@@ -441,10 +427,11 @@ export class BogEngine {
           continue;
       }
     }
-
-    // At the end ...
-    this.renderer.queueParticles(particlesToUpdate);
   }
+
+  private handleSands(index: Index) {}
+
+  private tryPushParticle(index: Index) {}
 }
 
 //

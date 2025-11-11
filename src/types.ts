@@ -4,8 +4,7 @@ import type { Categories, Phases } from "./structs/utils";
 export type Phase = (typeof Phases)[keyof typeof Phases];
 export type Category = (typeof Categories)[keyof typeof Categories];
 
-export interface Element {
-  // Base properties
+export interface ParticleData {
   id: number;
   name: string;
   phase: Phase;
@@ -13,27 +12,18 @@ export interface Element {
   isMovable: boolean;
   density: number;
 
-  // GPU properties
   baseColor: Color;
   blendColor: Color;
   highlightColor: Color;
 
-  // Physics based properties
   cohesion: number;
   reposeAngle: number;
 }
 
 export interface Particle {
+  data: ParticleData;
   position: Vector2;
-  index: Index;
-  color: Color;
-  category: Category;
-  primary: Element;
-  secondary: Element | null;
-
-  phase: Phase;
-  mass: number;
-  temperature: number;
+  velocity: Vector2;
 }
 
 // export type equalisationGroup = { liquidParticle: Particle[]; emptyParticle: Particle[] };
